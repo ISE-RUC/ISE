@@ -1,0 +1,58 @@
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
+
+class User(AbstractUser):
+    """
+    扩展用户模型，以学号为唯一标识。
+    角色等级：1=学院领导, 2=管理老师, 3=班团骨干, 4=普通学生
+    """
+    ROLE_LEADER = 1
+    ROLE_ADMIN = 2
+    ROLE_CADRE = 3
+    ROLE_STUDENT = 4
+    ROLE_CHOICES = [
+        (ROLE_LEADER, '学院领导'),
+        (ROLE_ADMIN, '管理老师'),
+        (ROLE_CADRE, '班团骨干'),
+        (ROLE_STUDENT, '普通学生'),
+    ]
+
+    student_id = models.CharField('学号', max_length=20, unique=True, null=True, blank=True)
+    role = models.IntegerField('角色', choices=ROLE_CHOICES, default=ROLE_STUDENT)
+    real_name = models.CharField('真实姓名', max_length=50, blank=True)
+    grade = models.CharField('年级', max_length=10, blank=True)
+    major = models.CharField('专业', max_length=100, blank=True)
+    email = models.EmailField('邮箱', blank=True)
+
+    # 敏感字段：仅 role <= 2 可见（在视图层控制）
+    id_number = models.CharField('身份证号', max_length=18, blank=True)
+    hometown = models.CharField('生源地', max_length=100, blank=True)
+    suspension_record = models.TextField('修学/延毕记录', blank=True)
+
+    USERNAME_FIELD = 'username'
+
+    class Meta:
+        verbose_name = '用户'
+        verbose_name_plural = '用户'
+
+    def is_admin_or_above(self):
+        return self.role <= self.ROLE_ADMIN
+
+    def can_view_sensitive(self):
+        return self.role <= self.ROLE_ADMIN
+
+
+class AuditLog(models.Model):
+    """操作审计日志，记录所有增删改审批操作。"""
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField('操作', max_length=200)
+    target_model = models.CharField('对象类型', max_length=100, blank=True)
+    target_id = models.CharField('对象ID', max_length=50, blank=True)
+    detail = models.TextField('详情', blank=True)
+    ip_address = models.GenericIPAddressField('IP', null=True, blank=True)
+    created_at = models.DateTimeField('时间', auto_now_add=True)
+
+    class Meta:
+        verbose_name = '操作日志'
+        ordering = ['-created_at']
