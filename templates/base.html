@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}学院学生综合服务与党团管理平台{% endblock %}</title>
+    <link rel="stylesheet" href="{% load static %}{% static 'css/main.css' %}">
+</head>
+<body>
+    <header>
+        <div class="topbar-inner">
+            <div>
+                <div class="brand-title">学院学生综合服务与党团管理平台</div>
+                <div class="brand-sub">严谨、正式、朴素的校园政务风格界面</div>
+            </div>
+            <div class="top-actions">
+                <button class="btn">演示用户（学生）</button>
+            </div>
+        </div>
+    </header>
+    <main>
+        {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
