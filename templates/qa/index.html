@@ -1,9 +1,324 @@
 {% extends "base.html" %}
 {% block title %}智能问答{% endblock %}
 {% block content %}
-<div style="padding: 2rem; background: white; border-radius: 8px;">
-    <h1>智能问答</h1>
-    <p style="margin-top: 1rem; color: #666;">此模块待组员实现</p>
-    <a href="{% url 'users:home' %}" style="display: inline-block; margin-top: 1rem; color: #2c3e50;">← 返回首页</a>
+<div class="qa-layout" data-active-conversation-id="{{ active_conversation_id|default:'' }}">
+    <aside class="qa-sidebar">
+        <div class="qa-sidebar-head">
+            <div class="qa-sidebar-brand">
+                <div class="qa-sidebar-title">智能问答</div>
+                <div class="qa-sidebar-sub">对话式检索问答</div>
+            </div>
+            <button class="qa-primary-btn" id="qaNewBtn" type="button">新对话</button>
+        </div>
+
+        <div class="qa-sidebar-section">历史对话</div>
+        <div class="qa-conv-list" id="qaConvList">
+            {% for c in conversations %}
+            <button class="qa-conv-item {% if c.id == active_conversation_id %}active{% endif %}" type="button" data-conv-id="{{ c.id }}">
+                <span class="qa-conv-title">{{ c.title }}</span>
+            </button>
+            {% endfor %}
+        </div>
+
+        <div class="qa-sidebar-foot">
+            <a href="{% url 'users:home' %}" class="qa-link">← 返回首页</a>
+        </div>
+    </aside>
+
+    <section class="qa-main">
+        <div class="qa-main-top">
+            <div class="qa-main-top-left">
+                <div class="qa-main-title">智能问答</div>
+                <div class="qa-main-sub">仿照豆包布局：左侧历史对话，中间对话，底部大输入栏</div>
+            </div>
+            <div class="qa-main-top-right">
+                <button class="qa-ghost-btn" id="qaCiteBtn" type="button">引用与命中</button>
+            </div>
+        </div>
+
+        <div class="qa-chat-window" id="qaChatWindow">
+            <div class="qa-chat-inner" id="qaChatInner">
+                {% for m in chat_messages %}
+                <div class="qa-msg {% if m.role == 'user' %}qa-msg-user{% else %}qa-msg-assistant{% endif %}">
+                    <div class="qa-msg-bubble">{{ m.content|linebreaksbr }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="qa-empty" id="qaEmpty">
+                <div class="qa-empty-inner">
+                    <div class="qa-empty-title">有什么我能帮你的吗？</div>
+                    <div class="qa-empty-sub">你可以直接提问，或点下面的推荐问题开始</div>
+                    <div class="qa-chip-row">
+                        <button type="button" class="qa-chip" data-text="入党流程怎么走？">入党流程怎么走？</button>
+                        <button type="button" class="qa-chip" data-text="团员关系转接需要哪些材料？">团员关系转接需要哪些材料？</button>
+                        <button type="button" class="qa-chip" data-text="推优一般指什么？">推优一般指什么？</button>
+                        <button type="button" class="qa-chip" data-text="预备党员转正流程是什么？">预备党员转正流程是什么？</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="qa-input-bar">
+            <form class="qa-input-form" id="qaChatForm">
+                {% csrf_token %}
+                <div class="qa-input-left">
+                    <button type="button" class="qa-icon-btn" id="qaPlusBtn">+</button>
+                </div>
+                <input type="text" id="qaMessageInput" name="message" placeholder="消息…" autocomplete="off" required>
+                <div class="qa-input-right">
+                    <button type="submit" class="qa-primary-btn" id="qaSendBtn">发送</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <div class="qa-drawer-backdrop" id="qaDrawerBackdrop"></div>
+    <aside class="qa-drawer" id="qaDrawer" aria-hidden="true">
+        <div class="qa-drawer-head">
+            <div class="qa-drawer-title">引用与命中</div>
+            <button class="qa-drawer-close" id="qaDrawerClose" type="button">×</button>
+        </div>
+
+        <div class="qa-drawer-body" id="qaHitsPanel">
+            {% if hits %}
+            <div class="notice-list" id="qaHitsList">
+                {% for h in hits %}
+                <div class="notice-item">
+                    <div class="qa-hit-head">
+                        <strong>{{ h.source_title }}</strong>
+                        <span class="pill pill-primary">score {{ h.score }}</span>
+                    </div>
+                    <div class="qa-hit-meta">{{ h.source_id }}</div>
+                    <div class="qa-hit-content">{{ h.content }}</div>
+                    {% if h.matched_terms %}
+                    <div class="qa-hit-terms">
+                        {% for t in h.matched_terms %}
+                        <span class="pill pill-success">{{ t }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="notice-item">暂无命中。你可以继续追问；也可以先向知识库目录添加学院材料，再进行检索引用。</div>
+            {% endif %}
+        </div>
+    </aside>
 </div>
+
+<script>
+const root = document.querySelector(".qa-layout");
+const chatWindow = document.getElementById("qaChatWindow");
+const chatInner = document.getElementById("qaChatInner");
+const form = document.getElementById("qaChatForm");
+const input = document.getElementById("qaMessageInput");
+const sendBtn = document.getElementById("qaSendBtn");
+const newBtn = document.getElementById("qaNewBtn");
+const convList = document.getElementById("qaConvList");
+const citeBtn = document.getElementById("qaCiteBtn");
+const drawer = document.getElementById("qaDrawer");
+const drawerBackdrop = document.getElementById("qaDrawerBackdrop");
+const drawerClose = document.getElementById("qaDrawerClose");
+const emptyState = document.getElementById("qaEmpty");
+let activeConversationId = (root && root.dataset.activeConversationId) || "";
+
+function getCsrfToken() {
+  const el = form.querySelector("input[name=csrfmiddlewaretoken]");
+  return el ? el.value : "";
+}
+
+function scrollToBottom() {
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function escapeHtml(text) {
+  return (text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function toHtmlWithBreaks(text) {
+  return escapeHtml(text).replace(/\n/g, "<br>");
+}
+
+function updateEmptyStateByDom() {
+  if (!emptyState || !chatInner) return;
+  const show = chatInner.children.length <= 1;
+  emptyState.style.display = show ? "flex" : "none";
+}
+
+function renderMessages(messages) {
+  chatInner.innerHTML = "";
+  (messages || []).forEach((m) => {
+    const wrap = document.createElement("div");
+    const role = (m && m.role) || "assistant";
+    wrap.className = "qa-msg " + (role === "user" ? "qa-msg-user" : "qa-msg-assistant");
+    const bubble = document.createElement("div");
+    bubble.className = "qa-msg-bubble";
+    bubble.innerHTML = toHtmlWithBreaks((m && m.content) || "");
+    wrap.appendChild(bubble);
+    chatInner.appendChild(wrap);
+  });
+  updateEmptyStateByDom();
+  scrollToBottom();
+}
+
+function appendMessage(role, text) {
+  const wrap = document.createElement("div");
+  wrap.className = "qa-msg " + (role === "user" ? "qa-msg-user" : "qa-msg-assistant");
+  const bubble = document.createElement("div");
+  bubble.className = "qa-msg-bubble";
+  bubble.innerHTML = toHtmlWithBreaks(text);
+  wrap.appendChild(bubble);
+  chatInner.appendChild(wrap);
+  updateEmptyStateByDom();
+  scrollToBottom();
+}
+
+function renderHits(hits) {
+  const panel = document.getElementById("qaHitsPanel");
+  if (!panel) return;
+  if (!Array.isArray(hits) || hits.length === 0) {
+    panel.innerHTML = '<div class="notice-item">暂无命中。你可以继续追问；也可以先向知识库目录添加学院材料，再进行检索引用。</div>';
+    return;
+  }
+  const list = document.createElement("div");
+  list.className = "notice-list";
+  list.id = "qaHitsList";
+  hits.slice(0, 12).forEach((h) => {
+    const item = document.createElement("div");
+    item.className = "notice-item";
+    const title = escapeHtml((h && h.source_title) || "");
+    const score = typeof h.score === "number" ? h.score : "";
+    const sourceId = escapeHtml((h && h.source_id) || "");
+    const content = escapeHtml((h && h.content) || "");
+    const terms = Array.isArray(h.matched_terms) ? h.matched_terms : [];
+    const termsHtml = terms
+      .slice(0, 10)
+      .map((t) => `<span class="pill pill-success">${escapeHtml(String(t))}</span>`)
+      .join("");
+    item.innerHTML = `
+      <div class="qa-hit-head">
+        <strong>${title}</strong>
+        <span class="pill pill-primary">score ${score}</span>
+      </div>
+      <div class="qa-hit-meta">${sourceId}</div>
+      <div class="qa-hit-content">${content}</div>
+      ${termsHtml ? `<div class="qa-hit-terms">${termsHtml}</div>` : ""}
+    `;
+    list.appendChild(item);
+  });
+  panel.innerHTML = "";
+  panel.appendChild(list);
+}
+
+function renderConversations(conversations, activeId) {
+  if (!convList) return;
+  convList.innerHTML = "";
+  (conversations || []).forEach((c) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "qa-conv-item" + ((c && c.id) === activeId ? " active" : "");
+    btn.dataset.convId = (c && c.id) || "";
+    const title = document.createElement("span");
+    title.className = "qa-conv-title";
+    title.textContent = (c && c.title) || "新对话";
+    btn.appendChild(title);
+    convList.appendChild(btn);
+  });
+}
+
+function openDrawer() {
+  drawer.classList.add("open");
+  drawerBackdrop.classList.add("show");
+  drawer.setAttribute("aria-hidden", "false");
+}
+
+function closeDrawer() {
+  drawer.classList.remove("open");
+  drawerBackdrop.classList.remove("show");
+  drawer.setAttribute("aria-hidden", "true");
+}
+
+async function postJson(url, body) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCsrfToken(),
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = (input.value || "").trim();
+  if (!text) return;
+  input.value = "";
+  appendMessage("user", text);
+  sendBtn.disabled = true;
+  appendMessage("assistant", "正在思考…");
+  const thinkingNode = chatInner.lastElementChild;
+  const { ok, data } = await postJson("{% url 'qa:chat' %}", { message: text });
+  if (thinkingNode && thinkingNode.parentNode === chatInner) {
+    chatInner.removeChild(thinkingNode);
+  }
+  if (!ok || !data.ok) {
+    appendMessage("assistant", "请求失败，请稍后重试。");
+    sendBtn.disabled = false;
+    return;
+  }
+  activeConversationId = data.active_conversation_id || activeConversationId;
+  renderConversations(data.conversations || [], activeConversationId);
+  appendMessage("assistant", ((data.assistant && data.assistant.content) || ""));
+  renderHits(data.hits || []);
+  sendBtn.disabled = false;
+});
+
+newBtn.addEventListener("click", async () => {
+  newBtn.disabled = true;
+  const { ok, data } = await postJson("{% url 'qa:new' %}", {});
+  newBtn.disabled = false;
+  if (!ok || !data.ok) return;
+  activeConversationId = data.active_conversation_id || "";
+  renderConversations(data.conversations || [], activeConversationId);
+  renderMessages(data.messages || []);
+  renderHits(data.hits || []);
+  closeDrawer();
+});
+
+convList.addEventListener("click", async (e) => {
+  const btn = e.target && e.target.closest ? e.target.closest(".qa-conv-item") : null;
+  if (!btn) return;
+  const cid = btn.dataset.convId || "";
+  if (!cid || cid === activeConversationId) return;
+  const { ok, data } = await postJson("{% url 'qa:switch' %}", { conversation_id: cid });
+  if (!ok || !data.ok) return;
+  activeConversationId = data.active_conversation_id || cid;
+  renderConversations(data.conversations || [], activeConversationId);
+  renderMessages(data.messages || []);
+  renderHits(data.hits || []);
+  closeDrawer();
+});
+
+citeBtn.addEventListener("click", () => {
+  openDrawer();
+});
+drawerBackdrop.addEventListener("click", () => closeDrawer());
+drawerClose.addEventListener("click", () => closeDrawer());
+
+document.addEventListener("click", (e) => {
+  const chip = e.target && e.target.closest ? e.target.closest(".qa-chip") : null;
+  if (!chip) return;
+  const text = chip.dataset.text || "";
+  if (!text) return;
+  input.value = text;
+  form.requestSubmit();
+});
+
+updateEmptyStateByDom();
+scrollToBottom();
+</script>
 {% endblock %}
