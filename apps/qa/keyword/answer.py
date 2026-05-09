@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from typing import Any
 
 import requests
+from django.conf import settings
 
 from .types import RetrievalHit
 from .. import prompts
@@ -14,23 +16,35 @@ from .. import prompts
 def _llm():
     from langchain_openai import ChatOpenAI
 
-    api_key = (os.getenv("ZAI_API_KEY") or "").strip()
+    api_key = (os.getenv("LLM_API_KEY") or "").strip()
     if not api_key:
-        raise RuntimeError("ZAI_API_KEY is not set")
+        raise RuntimeError("LLM_API_KEY is not set")
 
-    model = (os.getenv("ZAI_MODEL") or "glm-4.7-flash").strip()
-    base_url = (os.getenv("ZAI_API_BASE") or "https://open.bigmodel.cn/api/paas/v4/").strip()
-    temperature = float(os.getenv("ZAI_TEMPERATURE") or "0.2")
+    model = (os.getenv("LLM_MODEL") or "qwen3.5-flash").strip()
+    base_url = (
+        os.getenv("LLM_BASE_URL") or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    ).strip().rstrip("/")
+    temperature = float(os.getenv("LLM_TEMPERATURE") or "0.2")
+    timeout = float(os.getenv("LLM_TIMEOUT") or "30")
+    max_retries = int(os.getenv("LLM_MAX_RETRIES") or "1")
+
+    extra_body: dict[str, Any] = {}
+    if model.startswith("qwen3") and (os.getenv("QWEN_ENABLE_THINKING") or "").strip().lower() not in ("1", "true", "yes", "on"):
+        extra_body["enable_thinking"] = False
+
     return ChatOpenAI(
         temperature=temperature,
         model=model,
-        openai_api_key=api_key,
-        openai_api_base=base_url,
+        api_key=api_key,
+        base_url=base_url,
+        timeout=timeout,
+        max_retries=max_retries,
+        extra_body=extra_body or None,
     )
 
 
 def _invoke_llm(system_prompt: str, user_prompt: str, variables: dict[str, Any]) -> str:
-    from langchain.prompts import ChatPromptTemplate
+    from langchain_core.prompts import ChatPromptTemplate
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -39,9 +53,25 @@ def _invoke_llm(system_prompt: str, user_prompt: str, variables: dict[str, Any])
         ]
     )
     chain = prompt | _llm()
-    resp = chain.invoke(variables)
-    content = getattr(resp, "content", "") or ""
-    return content.strip()
+
+    retries = int(os.getenv("LLM_INVOKE_RETRIES") or "3")
+    base_sleep = float(os.getenv("LLM_BACKOFF_BASE_SECONDS") or "1")
+    last_err: Exception | None = None
+    for attempt in range(max(1, retries)):
+        try:
+            resp = chain.invoke(variables)
+            content = getattr(resp, "content", "") or ""
+            return content.strip()
+        except Exception as e:
+            last_err = e
+            name = type(e).__name__
+            msg = str(e)
+            is_rate_limit = name == "RateLimitError" or "Error code: 429" in msg or "速率限制" in msg
+            if is_rate_limit and attempt < retries - 1:
+                time.sleep(base_sleep * (2**attempt))
+                continue
+            raise
+    raise last_err or RuntimeError("LLM invoke failed")
 
 
 def _format_citations(hits: list[RetrievalHit]) -> str:
@@ -103,10 +133,12 @@ def _route_question(question: str, chat_history_text: str) -> dict[str, Any]:
             user_prompt=prompts.ROUTER_PROMPT,
             variables={"question": question, "chat_history": chat_history_text or "无"},
         )
-    except Exception:
-        return {"category": "GENERAL", "need_web_search": False, "search_query": ""}
+    except Exception as e:
+        return {"category": "GENERAL", "need_web_search": False, "search_query": "", "_error": f"{type(e).__name__}: {e}"}
 
     data = _extract_json(out) or {}
+    if not data:
+        return {"category": "GENERAL", "need_web_search": False, "search_query": "", "_error": "InvalidRouterJSON"}
     category = str(data.get("category") or "GENERAL").strip().upper()
     if category not in {
         "PARTY_AFFAIRS",
@@ -182,6 +214,7 @@ def build_answer(question: str, hits: list[RetrievalHit], chat_messages: list[di
     chat_history_text = _format_chat_history(chat_messages)
     route = _route_question(question=question, chat_history_text=chat_history_text)
     category = str(route.get("category") or "GENERAL")
+    router_error = str(route.get("_error") or "").strip()
 
     citations_text = _format_citations(hits)
     need_web_search = bool(route.get("need_web_search")) or not bool(hits)
@@ -199,14 +232,19 @@ def build_answer(question: str, hits: list[RetrievalHit], chat_messages: list[di
                 "web_search": web_search_text or "无",
             },
         )
-    except Exception:
+        llm_error = ""
+    except Exception as e:
         answer = ""
+        llm_error = f"{type(e).__name__}: {e}"
 
     if not answer:
         if citations_text != "无":
             answer = "我已检索到知识库引用，但暂时无法生成完整答复。你可以提供更具体的场景（对象、时间、所属组织/部门）后再问一次。"
         else:
             answer = "我没有在知识库中找到可引用的依据。建议你联系辅导员/党支部书记/团委老师或学院办公室核实最新要求，并补充具体场景后我再帮你整理办理步骤。"
+        if settings.DEBUG and (llm_error or router_error):
+            details = "；".join([x for x in [router_error and f"Router={router_error}", llm_error and f"LLM={llm_error}"] if x])
+            answer = f"{answer}\n\n（调试信息：{details}）"
 
     return {
         "answer": answer,

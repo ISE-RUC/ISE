@@ -15,11 +15,11 @@ ROUTER_PROMPT = """
 - 若问题强依赖本校/本院内部规定、且知识库无内容，仍可 need_web_search=true，但必须提醒“仅供参考，建议联系老师/辅导员/学院办公室核实”。
 
 请只输出 JSON（不要 Markdown，不要解释），格式如下：
-{
+{{
   "category": "PARTY_AFFAIRS|CERTIFICATE|NOTIFICATION|PROFILE|USERS_AUTH|GENERAL|OTHER",
   "need_web_search": true/false,
   "search_query": "用于搜索的一句话查询（可为空）"
-}
+}}
 
 【对话历史】
 {chat_history}

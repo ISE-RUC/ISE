@@ -1,11 +1,52 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 
 from .tokenize import extract_terms
 from .types import KnowledgeChunk, RetrievalHit
+
+
+def _extract_text_from_file(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix in {".txt", ".md"}:
+        return path.read_text(encoding="utf-8", errors="ignore")
+
+    if suffix == ".pdf":
+        try:
+            from pypdf import PdfReader
+        except Exception:
+            return ""
+        try:
+            reader = PdfReader(str(path))
+            parts: list[str] = []
+            for page in reader.pages:
+                text = page.extract_text() or ""
+                if text.strip():
+                    parts.append(text)
+            return "\n\n".join(parts)
+        except Exception:
+            return ""
+
+    if suffix in {".png", ".jpg", ".jpeg", ".webp"}:
+        try:
+            from PIL import Image
+        except Exception:
+            return ""
+        try:
+            import pytesseract
+        except Exception:
+            return ""
+        try:
+            image = Image.open(path)
+            lang = (os.getenv("QA_OCR_LANG") or "chi_sim+eng").strip()
+            return pytesseract.image_to_string(image, lang=lang) or ""
+        except Exception:
+            return ""
+
+    return ""
 
 
 class KeywordIndex:
@@ -52,16 +93,19 @@ class KeywordIndex:
 
     @classmethod
     def build_from_text_files(cls, source_dir: Path) -> "KeywordIndex":
+        return cls.build_from_sources(source_dir)
+
+    @classmethod
+    def build_from_sources(cls, source_dir: Path) -> "KeywordIndex":
         chunks: list[KnowledgeChunk] = []
         inverted: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
 
         for p in sorted(source_dir.rglob("*")):
             if not p.is_file():
                 continue
-            if p.suffix.lower() not in {".txt", ".md"}:
+            text = _extract_text_from_file(p)
+            if not text.strip():
                 continue
-
-            text = p.read_text(encoding="utf-8", errors="ignore")
             source_id = str(p.relative_to(source_dir))
             source_title = p.stem
 
@@ -110,4 +154,3 @@ class KeywordIndex:
 
         hits.sort(key=lambda h: (-h.score, h.chunk.source_title, h.chunk.chunk_id))
         return hits[: max(1, int(top_k))]
-
