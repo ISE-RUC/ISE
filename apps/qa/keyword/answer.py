@@ -1,34 +1,47 @@
 from __future__ import annotations
 
+import json
+import os
+import re
+from typing import Any
+
+import requests
+
 from .types import RetrievalHit
 from .. import prompts
 
 
-PARTY_AFFAIRS_KEYWORDS = (
-    "入党",
-    "党员",
-    "预备党员",
-    "发展对象",
-    "积极分子",
-    "党支部",
-    "团员",
-    "团关系",
-    "团员关系",
-    "转接",
-    "团委",
-    "组织生活",
-    "党费",
-    "推优",
-    "评优",
-    "评先",
-)
+def _llm():
+    from langchain_openai import ChatOpenAI
+
+    api_key = (os.getenv("ZAI_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError("ZAI_API_KEY is not set")
+
+    model = (os.getenv("ZAI_MODEL") or "glm-4.7-flash").strip()
+    base_url = (os.getenv("ZAI_API_BASE") or "https://open.bigmodel.cn/api/paas/v4/").strip()
+    temperature = float(os.getenv("ZAI_TEMPERATURE") or "0.2")
+    return ChatOpenAI(
+        temperature=temperature,
+        model=model,
+        openai_api_key=api_key,
+        openai_api_base=base_url,
+    )
 
 
-def is_party_affairs_question(question: str) -> bool:
-    q = (question or "").strip()
-    if not q:
-        return False
-    return any(k in q for k in PARTY_AFFAIRS_KEYWORDS)
+def _invoke_llm(system_prompt: str, user_prompt: str, variables: dict[str, Any]) -> str:
+    from langchain.prompts import ChatPromptTemplate
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", user_prompt),
+        ]
+    )
+    chain = prompt | _llm()
+    resp = chain.invoke(variables)
+    content = getattr(resp, "content", "") or ""
+    return content.strip()
 
 
 def _format_citations(hits: list[RetrievalHit]) -> str:
@@ -42,31 +55,159 @@ def _format_citations(hits: list[RetrievalHit]) -> str:
     return "\n".join(lines)
 
 
-def build_answer(question: str, hits: list[RetrievalHit]) -> dict:
+def _format_chat_history(chat_messages: list[dict] | None) -> str:
+    if not chat_messages:
+        return ""
+    items: list[str] = []
+    for m in chat_messages[-12:]:
+        if not isinstance(m, dict):
+            continue
+        role = (m.get("role") or "").strip()
+        content = (m.get("content") or "").strip()
+        if not role or not content:
+            continue
+        if role == "user":
+            prefix = "用户"
+        elif role == "assistant":
+            prefix = "助手"
+        else:
+            prefix = role
+        items.append(f"{prefix}：{content}")
+    return "\n".join(items).strip()
+
+
+def _extract_json(text: str) -> dict[str, Any] | None:
+    s = (text or "").strip()
+    if not s:
+        return None
+    if s.startswith("{") and s.endswith("}"):
+        try:
+            v = json.loads(s)
+        except Exception:
+            return None
+        return v if isinstance(v, dict) else None
+    m = re.search(r"\{[\s\S]*\}", s)
+    if not m:
+        return None
+    try:
+        v = json.loads(m.group(0))
+    except Exception:
+        return None
+    return v if isinstance(v, dict) else None
+
+
+def _route_question(question: str, chat_history_text: str) -> dict[str, Any]:
+    try:
+        out = _invoke_llm(
+            system_prompt="你只负责输出 JSON，不要输出多余文本。",
+            user_prompt=prompts.ROUTER_PROMPT,
+            variables={"question": question, "chat_history": chat_history_text or "无"},
+        )
+    except Exception:
+        return {"category": "GENERAL", "need_web_search": False, "search_query": ""}
+
+    data = _extract_json(out) or {}
+    category = str(data.get("category") or "GENERAL").strip().upper()
+    if category not in {
+        "PARTY_AFFAIRS",
+        "CERTIFICATE",
+        "NOTIFICATION",
+        "PROFILE",
+        "USERS_AUTH",
+        "GENERAL",
+        "OTHER",
+    }:
+        category = "GENERAL"
+    need_web_search = bool(data.get("need_web_search") is True)
+    search_query = str(data.get("search_query") or "").strip()
+    return {"category": category, "need_web_search": need_web_search, "search_query": search_query}
+
+
+def _web_search(query: str) -> str:
+    enabled = (os.getenv("QA_ENABLE_WEB_SEARCH") or "1").strip().lower() in ("1", "true", "yes", "on")
+    if not enabled:
+        return ""
+    q = (query or "").strip()
+    if not q:
+        return ""
+    try:
+        resp = requests.get(
+            "https://api.duckduckgo.com/",
+            params={"q": q, "format": "json", "no_redirect": "1", "no_html": "1"},
+            timeout=8,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception:
+        return ""
+
+    parts: list[str] = []
+    abstract = (data.get("AbstractText") or "").strip()
+    if abstract:
+        parts.append(f"摘要：{abstract}")
+
+    related = data.get("RelatedTopics") or []
+    items: list[str] = []
+    if isinstance(related, list):
+        for it in related:
+            if isinstance(it, dict) and "Topics" in it and isinstance(it.get("Topics"), list):
+                for sub in it.get("Topics") or []:
+                    if isinstance(sub, dict):
+                        items.append((sub.get("Text") or "").strip())
+            elif isinstance(it, dict):
+                items.append((it.get("Text") or "").strip())
+            if len(items) >= 6:
+                break
+    items = [x for x in items if x]
+    if items:
+        parts.append("要点：\n" + "\n".join(f"- {x}" for x in items[:6]))
+    return "\n\n".join(parts).strip()
+
+
+def _system_prompt_for_category(category: str) -> str:
+    mapping = {
+        "PARTY_AFFAIRS": prompts.SYSTEM_PARTY_AFFAIRS,
+        "CERTIFICATE": prompts.SYSTEM_CERTIFICATE,
+        "NOTIFICATION": prompts.SYSTEM_NOTIFICATION,
+        "PROFILE": prompts.SYSTEM_PROFILE,
+        "USERS_AUTH": prompts.SYSTEM_USERS_AUTH,
+        "GENERAL": prompts.SYSTEM_GENERAL,
+        "OTHER": prompts.SYSTEM_OTHER,
+    }
+    return mapping.get(category, prompts.SYSTEM_GENERAL)
+
+
+def build_answer(question: str, hits: list[RetrievalHit], chat_messages: list[dict] | None = None) -> dict:
     question = (question or "").strip()
-
-    if not is_party_affairs_question(question):
-        return {
-            "answer": prompts.REFUSAL_NON_PARTY_AFFAIRS,
-            "citations": [],
-            "hits": [],
-        }
-
-    if not hits:
-        return {
-            "answer": prompts.EMPTY_KB,
-            "citations": [],
-            "hits": [],
-        }
+    chat_history_text = _format_chat_history(chat_messages)
+    route = _route_question(question=question, chat_history_text=chat_history_text)
+    category = str(route.get("category") or "GENERAL")
 
     citations_text = _format_citations(hits)
-    answer = prompts.ANSWER_TEMPLATE.format(
-        conclusion="已检索到与问题相关的学院材料片段，建议按以下要点核对办理要求。",
-        steps="1. 请根据引用片段确认适用对象与办理条件\n2. 按引用片段中的流程步骤准备材料\n3. 如存在时间节点或例外情况，以最新通知为准",
-        materials="1. 以引用片段中的材料清单为准\n2. 如引用未覆盖材料清单，请补充具体场景后再提问",
-        notes="1. 该回答基于关键词检索结果，可能存在遗漏\n2. 若引用片段互相冲突，请以最新版本或学院最新通知为准",
-        citations=citations_text,
-    )
+    need_web_search = bool(route.get("need_web_search")) or not bool(hits)
+    search_query = (route.get("search_query") or "").strip() or question
+    web_search_text = _web_search(search_query) if need_web_search else ""
+
+    try:
+        answer = _invoke_llm(
+            system_prompt=_system_prompt_for_category(category),
+            user_prompt=prompts.USER_PROMPT_TEMPLATE,
+            variables={
+                "chat_history": chat_history_text or "无",
+                "question": question or "（空）",
+                "kb_citations": citations_text,
+                "web_search": web_search_text or "无",
+            },
+        )
+    except Exception:
+        answer = ""
+
+    if not answer:
+        if citations_text != "无":
+            answer = "我已检索到知识库引用，但暂时无法生成完整答复。你可以提供更具体的场景（对象、时间、所属组织/部门）后再问一次。"
+        else:
+            answer = "我没有在知识库中找到可引用的依据。建议你联系辅导员/党支部书记/团委老师或学院办公室核实最新要求，并补充具体场景后我再帮你整理办理步骤。"
+
     return {
         "answer": answer,
         "citations": [{"title": h.chunk.source_title, "source_id": h.chunk.source_id} for h in hits],
@@ -82,4 +223,3 @@ def build_answer(question: str, hits: list[RetrievalHit]) -> dict:
             for h in hits
         ],
     }
-

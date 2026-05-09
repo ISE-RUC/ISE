@@ -22,8 +22,7 @@ class QaKeywordService:
         self._index = index
         return index
 
-    def ask(self, question: str, top_k: int = 5) -> dict:
+    def ask(self, question: str, top_k: int = 5, chat_messages: list[dict] | None = None) -> dict:
         index = self._load_index()
         hits = index.search(question, top_k=top_k)
-        return build_answer(question=question, hits=hits)
-
+        return build_answer(question=question, hits=hits, chat_messages=chat_messages)

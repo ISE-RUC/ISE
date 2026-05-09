@@ -161,7 +161,7 @@ class ChatMessageView(View):
         messages: list[dict] = conv.get("messages") or []
         messages.append({"role": "user", "content": user_message})
         retrieval_query = _build_retrieval_query(user_message, messages)
-        result = self._qa_service.ask(retrieval_query, top_k=6)
+        result = self._qa_service.ask(retrieval_query, top_k=6, chat_messages=messages)
 
         assistant_text = (result.get("answer") or "").strip()
         if not assistant_text:

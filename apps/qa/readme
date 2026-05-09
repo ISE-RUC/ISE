@@ -1,0 +1,4 @@
+启动时记得
+export ZAI_API_KEY="343084dbbdee4b4a92d12c075202e7fb.SJ7P787X5kWllD87"
+export ZAI_MODEL="glm-4.7-flash"
+export ZAI_API_BASE="https://open.bigmodel.cn/api/paas/v4/"
