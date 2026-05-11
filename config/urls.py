@@ -2,9 +2,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from config.api import api
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # API 路由 (自动生成文档在 /api/docs/)
+    path('api/', api.urls),
+    # 应用路由
     path('', include('apps.users.urls', namespace='users')),
     path('qa/', include('apps.qa.urls', namespace='qa')),
     path('party/', include('apps.party.urls', namespace='party')),
