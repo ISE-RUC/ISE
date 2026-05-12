@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}学院学生综合服务与党团管理平台{% endblock %}</title>
-    <link rel="stylesheet" href="{% load static %}{% static 'css/main.css' %}">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
 </head>
 <body>
     <header>
@@ -14,7 +15,15 @@
                 <div class="brand-sub">严谨、正式、朴素的校园政务风格界面</div>
             </div>
             <div class="top-actions">
-                <button class="btn">演示用户（学生）</button>
+                {% if user.is_authenticated %}
+                <span class="pill pill-primary">{{ user.real_name|default:user.username }}</span>
+                <form method="post" action="{% url 'users:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn">退出登录</button>
+                </form>
+                {% else %}
+                <a href="{% url 'users:login' %}" class="btn">登录</a>
+                {% endif %}
             </div>
         </div>
     </header>
