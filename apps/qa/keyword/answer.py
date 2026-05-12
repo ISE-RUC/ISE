@@ -146,6 +146,8 @@ def _route_question(question: str, chat_history_text: str) -> dict[str, Any]:
         "NOTIFICATION",
         "PROFILE",
         "USERS_AUTH",
+        "TRAINING_PLAN",
+        "COURSE_SELECTION",
         "GENERAL",
         "OTHER",
     }:
@@ -203,6 +205,8 @@ def _system_prompt_for_category(category: str) -> str:
         "NOTIFICATION": prompts.SYSTEM_NOTIFICATION,
         "PROFILE": prompts.SYSTEM_PROFILE,
         "USERS_AUTH": prompts.SYSTEM_USERS_AUTH,
+        "TRAINING_PLAN": prompts.SYSTEM_TRAINING_PLAN,
+        "COURSE_SELECTION": prompts.SYSTEM_COURSE_SELECTION,
         "GENERAL": prompts.SYSTEM_GENERAL,
         "OTHER": prompts.SYSTEM_OTHER,
     }
