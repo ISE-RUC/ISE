@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}新建证明申请{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'certificate/certificate.css' %}">
+
+<section class="grid-main certificate-create-page">
+    <div class="card">
+        <div class="hero-head certificate-hero-head">
+            <div>
+                <h1 class="hero-title">新建证明申请</h1>
+                <p class="hero-desc">{{ page_intro }}</p>
+            </div>
+            <div class="certificate-page-actions">
+                <div class="role-tag">
+                    <div class="small">申请人</div>
+                    <div class="role">{{ student_profile.name }}</div>
+                </div>
+                <a href="{% url 'certificate:index' %}" class="btn">返回申请列表</a>
+            </div>
+        </div>
+
+        <form class="certificate-form" method="post" data-api-form data-api-url="/api/certificates/">
+            {% csrf_token %}
+
+            <div class="certificate-section">
+                <div class="card-head">
+                    <h2>证明类型选择</h2>
+                    <span class="pill pill-primary">学生自行选择</span>
+                </div>
+                <div class="action-grid certificate-type-grid">
+                    {% for item in certificate_types %}
+                    <label class="certificate-type-option">
+                        <input
+                            type="radio"
+                            name="certificate_type"
+                            value="{{ item.id }}"
+                            {% if selected_certificate_type == item.id %}checked{% endif %}
+                            data-preview-title="{{ item.preview_title }}"
+                            data-certificate-name="{{ item.name }}"
+                        >
+                        <span class="action-item certificate-type-card">
+                            <div class="icon-wrap">{{ item.icon }}</div>
+                            <h3>{{ item.name }}</h3>
+                            <p>{{ item.description }}</p>
+                            <span class="link">{{ item.tag }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="certificate-section">
+                <div class="card-head">
+                    <h2>申请说明填写</h2>
+                    <span class="pill pill-primary">用于材料校验</span>
+                </div>
+                <div class="certificate-form-grid">
+                    <div class="notice-item">
+                        <label class="certificate-field-label" for="purpose">用途说明</label>
+                        <textarea
+                            id="purpose"
+                            name="purpose"
+                            class="certificate-textarea"
+                            rows="4"
+                            placeholder="请输入证明使用场景，例如用于政审、比赛报名、补充材料等"
+                        >{{ form_values.purpose }}</textarea>
+                    </div>
+                    <div class="notice-item">
+                        <label class="certificate-field-label" for="attachment_note">附件说明</label>
+                        <textarea
+                            id="attachment_note"
+                            name="attachment_note"
+                            class="certificate-textarea"
+                            rows="4"
+                            placeholder="如有接收单位要求、通知截图说明等，请填写在这里"
+                        >{{ form_values.attachment_note }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="certificate-section">
+                <div class="card-head">
+                    <h2>个人信息展示</h2>
+                    <button class="btn" type="button" id="reopenProfileModal">重新查看信息卡</button>
+                </div>
+                <div class="certificate-profile-grid">
+                    <div class="notice-item certificate-profile-item">
+                        <span>姓名</span>
+                        <strong data-profile-name>{{ student_profile.name }}</strong>
+                    </div>
+                    <div class="notice-item certificate-profile-item">
+                        <span>学号</span>
+                        <strong data-profile-id>{{ student_profile.student_id }}</strong>
+                    </div>
+                    <div class="notice-item certificate-profile-item">
+                        <span>专业</span>
+                        <strong data-profile-major>{{ student_profile.major }}</strong>
+                    </div>
+                    <div class="notice-item certificate-profile-item">
+                        <span>性别</span>
+                        <strong data-profile-gender>{{ student_profile.gender }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="certificate-section">
+                <div class="card-head">
+                    <h2>材料完整性提示</h2>
+                    <span class="pill pill-warning">提交后自动校验</span>
+                </div>
+                <div class="notice-list certificate-material-list">
+                    {% for item in materials %}
+                    <div class="notice-item certificate-material-item">
+                        <div>
+                            <strong>{{ item.name }}</strong>
+                            <p>{{ item.detail }}</p>
+                        </div>
+                        <span class="pill {{ item.pill_class }}">{{ item.status }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="certificate-section">
+                <div class="card-head">
+                    <h2>证明预览</h2>
+                    <button
+                        class="btn btn-primary"
+                        type="button"
+                        id="openPreviewModal"
+                        data-pdf-preview-url="{% url 'certificate:preview_draft' %}"
+                    >打开 PDF 预览</button>
+                </div>
+                <div class="certificate-preview-grid">
+                    <div class="notice-item">
+                        <div class="section-label">当前证明类型</div>
+                        <strong id="selectedCertificateName">
+                            {% for item in certificate_types %}{% if selected_certificate_type == item.id %}{{ item.name }}{% endif %}{% endfor %}
+                        </strong>
+                    </div>
+                    <div class="notice-item">
+                        <div class="section-label">提交前提醒</div>
+                        <strong>确认用途说明和附件说明填写完整后再提交，若材料不全会退回补充。</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="certificate-submit-row">
+                <button class="btn btn-primary" type="submit">提交申请</button>
+                <a href="{% url 'certificate:index' %}" class="btn">取消并返回</a>
+            </div>
+        </form>
+    </div>
+
+    <div>
+        <div class="card" style="margin-bottom:24px;">
+            <div class="card-head">
+                <h2>新建说明</h2>
+                <span class="pill pill-primary">填写阶段</span>
+            </div>
+            <div class="notice-list">
+                <div class="notice-item">本页只负责新建申请，不展示历史状态和处理记录。</div>
+                <div class="notice-item">提交成功后将进入对应申请详情页，后续下载、撤回和重提都在详情页进行。</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h2>填写建议</h2>
+                <span class="pill pill-success">减少退回</span>
+            </div>
+            <div class="todo-list">
+                <div class="todo-item"><span class="dot"></span><span>用途说明尽量写清接收单位和使用场景。</span></div>
+                <div class="todo-item"><span class="dot"></span><span>附件说明可写明通知截图或外部要求。</span></div>
+                <div class="todo-item"><span class="dot"></span><span>提交前先点击预览，确认展示内容无误。</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="certificate-overlay is-visible" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+    <div class="certificate-modal">
+        <div class="card-head">
+            <h2 id="profileModalTitle">个人信息确认</h2>
+            <button class="modal-close" type="button" data-close-modal="profileModal" aria-label="关闭个人信息弹窗">×</button>
+        </div>
+        <p class="hero-desc certificate-modal-desc">新建申请前先确认个人基础信息，确认无误后再开始填写申请内容。</p>
+        <div class="certificate-profile-grid certificate-profile-grid--modal">
+            <div class="notice-item certificate-profile-item">
+                <span>姓名</span>
+                <strong>{{ student_profile.name }}</strong>
+            </div>
+            <div class="notice-item certificate-profile-item">
+                <span>学号</span>
+                <strong>{{ student_profile.student_id }}</strong>
+            </div>
+            <div class="notice-item certificate-profile-item">
+                <span>专业</span>
+                <strong>{{ student_profile.major }}</strong>
+            </div>
+            <div class="notice-item certificate-profile-item">
+                <span>性别</span>
+                <strong>{{ student_profile.gender }}</strong>
+            </div>
+        </div>
+        <div class="certificate-modal-actions">
+            <button class="btn btn-primary" type="button" data-close-modal="profileModal">信息无误，开始填写</button>
+        </div>
+    </div>
+</div>
+
+<div class="certificate-overlay" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+    <div class="certificate-modal certificate-modal-wide">
+        <div class="card-head">
+            <h2 id="previewModalTitle">证明预览</h2>
+            <div class="certificate-preview-toolbar">
+                <span class="pill pill-primary" id="previewTypePill">
+                    {% for item in certificate_types %}{% if selected_certificate_type == item.id %}{{ item.preview_title }}{% endif %}{% endfor %}
+                </span>
+                <button class="modal-close" type="button" data-close-modal="previewModal" aria-label="关闭预览弹窗">×</button>
+            </div>
+        </div>
+        <div class="card certificate-preview-paper">
+            <div class="certificate-preview-paper__head">
+                <div>
+                    <div class="section-label">学院学生事务服务中心</div>
+                    <h3 id="previewCertificateTitle">
+                        {% for item in certificate_types %}{% if selected_certificate_type == item.id %}{{ item.preview_title }}{% endif %}{% endfor %}
+                    </h3>
+                </div>
+                <span class="pill pill-warning">预览稿</span>
+            </div>
+            <div class="certificate-preview-paper__body">
+                <p>兹证明：</p>
+                <p>
+                    <strong id="previewName">{{ student_profile.name }}</strong>，
+                    学号 <strong id="previewStudentId">{{ student_profile.student_id }}</strong>，
+                    性别 <strong id="previewGender">{{ student_profile.gender }}</strong>，
+                    专业为 <strong id="previewMajor">{{ student_profile.major }}</strong>。
+                </p>
+                <p id="previewDescription">该生当前申请开具证明，请以正式签发文件为准。</p>
+                <p>提交后系统将先进行材料完整性校验，校验通过后再进入审核流程。</p>
+            </div>
+            <div class="certificate-preview-paper__foot">
+                <span>学院学生事务服务中心</span>
+                <span>日期：2026-05-11</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'certificate/certificate.js' %}"></script>
+{% endblock %}

@@ -1,9 +1,98 @@
 {% extends "base.html" %}
-{% block title %}证明开具{% endblock %}
+{% load static %}
+
+{% block title %}我的证明申请{% endblock %}
+
 {% block content %}
-<div style="padding: 2rem; background: white; border-radius: 8px;">
-    <h1>证明开具</h1>
-    <p style="margin-top: 1rem; color: #666;">此模块待组员实现</p>
-    <a href="{% url 'users:home' %}" style="display: inline-block; margin-top: 1rem; color: #2c3e50;">← 返回首页</a>
-</div>
+<link rel="stylesheet" href="{% static 'certificate/certificate.css' %}">
+
+<section class="grid-main certificate-list-page">
+    <div class="card">
+        <div class="hero-head certificate-hero-head">
+            <div>
+                <h1 class="hero-title">我的证明申请</h1>
+                <p class="hero-desc">{{ page_intro }}</p>
+            </div>
+            <div class="certificate-page-actions">
+                <div class="role-tag">
+                    <div class="small">当前用户</div>
+                    <div class="role">{{ student_profile.name }}</div>
+                </div>
+                <a href="{% url 'certificate:create' %}" class="btn btn-primary">新建申请</a>
+            </div>
+        </div>
+
+        <div class="certificate-table-wrap">
+            <table class="certificate-table">
+                <thead>
+                    <tr>
+                        <th>申请单号</th>
+                        <th>证明名称</th>
+                        <th>当前状态</th>
+                        <th>申请日期</th>
+                        <th>最近更新</th>
+                        <th>文件状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in request_rows %}
+                    <tr class="certificate-row" data-href="{% url 'certificate:detail' item.id %}">
+                        <td>{{ item.reference }}</td>
+                        <td>{{ item.cert_type }}</td>
+                        <td><span class="pill {{ item.status_class }}">{{ item.status }}</span></td>
+                        <td>{{ item.created_at }}</td>
+                        <td>{{ item.updated_at }}</td>
+                        <td>{{ item.pdf_state }}</td>
+                        <td>
+                            <div class="certificate-row-actions">
+                                <a href="{% url 'certificate:detail' item.id %}" class="btn btn-primary">查看详情</a>
+                                {% if item.can_download %}
+                                <a href="{% url 'certificate:download' item.id %}" class="btn">下载</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="notice-item certificate-empty-state">
+                                当前还没有申请记录，点击右上角“新建申请”开始办理。
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div>
+        <div class="card" style="margin-bottom:24px;">
+            <div class="card-head">
+                <h2>申请说明</h2>
+                <span class="pill pill-primary">学生端</span>
+            </div>
+            <div class="notice-list">
+                <div class="notice-item">点击“新建申请”后再进入填写流程，列表页不直接展示申请状态细节。</div>
+                <div class="notice-item">点击表格中的具体申请即可跳转到该申请详情页，查看状态、处理记录和下载入口。</div>
+                <div class="notice-item">申请已签发时可下载文件；观察期内可撤回；待补充材料或退回修改时可继续提交。</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h2>我的信息</h2>
+                <span class="pill pill-success">已绑定</span>
+            </div>
+            <div class="todo-list">
+                <div class="todo-item"><span class="dot"></span><span>姓名：{{ student_profile.name }}</span></div>
+                <div class="todo-item"><span class="dot"></span><span>学号：{{ student_profile.student_id }}</span></div>
+                <div class="todo-item"><span class="dot"></span><span>专业：{{ student_profile.major }}</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script src="{% static 'certificate/certificate.js' %}"></script>
 {% endblock %}
