@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}党团事务学生端{% endblock %}
+{% block content %}
+<section class="card">
+    {% include "party/_page_nav.html" %}
+    <div class="card-head">
+        <h2>党团事务学生端</h2>
+        <span class="pill pill-primary">流程总览</span>
+    </div>
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
+    </div>
+    {% if member %}
+    <div class="dashboard-summary">
+        <div class="summary-item">
+            <div class="summary-label">当前阶段</div>
+            <div class="summary-value">{{ member.get_current_stage_display }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">当前节点</div>
+            <div class="summary-value">
+                {% if current_stage_instance %}{{ current_stage_instance.stage_definition.name }}{% else %}暂无{% endif %}
+            </div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">预计下一节点日期</div>
+            <div class="summary-value">
+                {% if member.expected_next_date %}{{ member.expected_next_date|date:"Y-m-d" }}{% else %}待审批结果{% endif %}
+            </div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">当前状态</div>
+            <div class="summary-value">
+                {% if pending_task %}
+                已提交审批
+                {% elif current_stage_instance %}
+                {{ current_stage_instance.get_status_display }}
+                {% else %}
+                暂无进行中节点
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if current_stage_instance %}
+    <div class="card-section">
+        <div class="section-header">
+            <h3>当前待办</h3>
+            {% if all_materials_ready %}
+            <span class="pill pill-success">材料已齐备</span>
+            {% else %}
+            <span class="pill pill-warning">仍需补交材料</span>
+            {% endif %}
+        </div>
+        <div class="stack-list">
+            {% for item in material_items %}
+            <div class="stack-item">
+                <div>
+                    <strong>{{ item.material_type.name }}</strong>
+                    <div class="muted-text">{{ item.requirement.note|default:"当前节点要求提交的材料" }}</div>
+                </div>
+                {% if item.submission %}
+                <span class="pill pill-success">已上传 v{{ item.submission.version }}</span>
+                {% else %}
+                <span class="pill pill-warning">未上传</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card-section">
+        <div class="section-header">
+            <h3>提醒事项</h3>
+            <span class="pill pill-primary">{{ student_reminders|length }} 项</span>
+        </div>
+        {% if student_reminders %}
+        <div class="stack-list">
+            {% for item in student_reminders %}
+            <div class="stack-item">
+                <div>
+                    <strong>{{ item.title }}</strong>
+                    <div class="muted-text">{{ item.content|default:"系统提醒" }}</div>
+                    {% if item.stage_instance %}
+                    <div class="muted-text">关联节点：{{ item.stage_instance.stage_definition.name }}</div>
+                    {% endif %}
+                </div>
+                <div class="status-column">
+                    <span class="pill {% if item.status == 'sent' %}pill-success{% else %}pill-warning{% endif %}">
+                        {{ item.get_status_display }}
+                    </span>
+                    <div class="muted-text">{{ item.scheduled_at|date:"Y-m-d H:i" }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-panel compact">
+            <p>当前没有新的提醒事项。</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="action-grid">
+        <a href="{% url 'party:party_student:timeline' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>流程时间轴</h3>
+            <p>查看每个标准节点、当前进度和历史完成情况。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+        <a href="{% url 'party:party_student:materials' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>材料提交</h3>
+            <p>上传当前节点所需材料，并在材料齐备后提交审批。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+        <a href="{% url 'party:party_student:reminders' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>提醒与待办</h3>
+            <p>查看全部站内提醒、审批待办和节点准备事项。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+        <a href="{% url 'party:party_student:history' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>办理历史</h3>
+            <p>查看已完成节点、审批结果和历史意见记录。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+    </div>
+    {% else %}
+    <div class="empty-panel">
+        <h3>当前账号还没有党团档案</h3>
+        <p>请先由管理老师在后台建立档案，或通过初始化命令导入演示数据。</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
