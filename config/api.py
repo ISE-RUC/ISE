@@ -35,3 +35,6 @@ def protected(request):
 # 例如：
 # from apps.users.api import router as users_router
 # api.add_router("/users/", users_router)
+from apps.qa.views import router as qa_router
+
+api.add_router("/qa/", qa_router, tags=["问答系统"])

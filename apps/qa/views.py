@@ -3,12 +3,16 @@ import json
 from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
+from ninja import Router, Schema
 
 from .keyword.service import QaKeywordService
+from utils.response import error, success
 
 
 SESSION_CONVERSATIONS_KEY = "qa_conversations"
 SESSION_ACTIVE_CONVERSATION_KEY = "qa_active_conversation_id"
+
+router = Router()
 
 
 def _bootstrap_message() -> dict:
@@ -119,6 +123,76 @@ def _build_retrieval_query(user_message: str, messages: list[dict]) -> str:
     return user_message
 
 
+class ChatIn(Schema):
+    message: str
+
+
+class SwitchIn(Schema):
+    conversation_id: str
+
+
+def _chat_payload(request, user_message: str) -> dict:
+    conversations = _get_conversations(request)
+    conv = _get_or_create_active_conversation(request)
+    messages: list[dict] = conv.get("messages") or []
+    messages.append({"role": "user", "content": user_message})
+    retrieval_query = _build_retrieval_query(user_message, messages)
+    result = QaKeywordService().ask(retrieval_query, top_k=6, chat_messages=messages)
+
+    assistant_text = (result.get("answer") or "").strip() or "我暂时无法生成回答。请换一种问法，或提供更具体的场景信息。"
+
+    hits = result.get("hits", []) or []
+    conv["hits"] = hits[:12]
+
+    messages.append({"role": "assistant", "content": assistant_text})
+    conv["messages"] = messages[-80:]
+    if conv.get("title") in ("新对话", "", None):
+        conv["title"] = user_message[:18] + ("…" if len(user_message) > 18 else "")
+    conv["updated_at"] = int(conv.get("updated_at") or 0) + 1
+    for i, c in enumerate(conversations):
+        if c.get("id") == conv.get("id"):
+            conversations.pop(i)
+            break
+    conversations.insert(0, conv)
+    _set_conversations(request, conversations)
+    return {
+        "assistant": {"role": "assistant", "content": assistant_text},
+        "hits": hits,
+        "active_conversation_id": conv.get("id"),
+        "conversations": [{"id": c.get("id"), "title": c.get("title")} for c in conversations],
+    }
+
+
+def _new_payload(request) -> dict:
+    conv = _create_conversation(request)
+    conversations = _get_conversations(request)
+    return {
+        "active_conversation_id": conv.get("id"),
+        "conversations": [{"id": c.get("id"), "title": c.get("title")} for c in conversations],
+        "messages": conv.get("messages") or [],
+        "hits": conv.get("hits") or [],
+    }
+
+
+def _reset_payload(request) -> dict:
+    request.session.pop(SESSION_CONVERSATIONS_KEY, None)
+    request.session.pop(SESSION_ACTIVE_CONVERSATION_KEY, None)
+    return _new_payload(request)
+
+
+def _switch_payload(request, cid: str) -> dict | None:
+    conv = _set_active_conversation(request, cid)
+    if conv is None:
+        return None
+    conversations = _get_conversations(request)
+    return {
+        "active_conversation_id": conv.get("id"),
+        "conversations": [{"id": c.get("id"), "title": c.get("title")} for c in conversations],
+        "messages": conv.get("messages") or [],
+        "hits": conv.get("hits") or [],
+    }
+
+
 class IndexView(TemplateView):
     template_name = "qa/index.html"
 
@@ -140,88 +214,32 @@ class IndexView(TemplateView):
 
 
 class ChatMessageView(View):
-    _qa_service = QaKeywordService()
-
     def post(self, request, *args, **kwargs):
         content_type = (request.headers.get("Content-Type") or "").lower()
         if "application/json" in content_type:
             try:
                 payload = json.loads(request.body.decode("utf-8") or "{}")
             except json.JSONDecodeError:
-                return JsonResponse({"ok": False, "error": "请求格式错误"}, status=400)
+                return JsonResponse(error(msg="请求格式错误", code=400), status=400)
             user_message = (payload.get("message") or "").strip()
         else:
             user_message = (request.POST.get("message") or "").strip()
 
         if not user_message:
-            return JsonResponse({"ok": False, "error": "请输入问题"}, status=400)
+            return JsonResponse(error(msg="请输入问题", code=400), status=400)
 
-        conversations = _get_conversations(request)
-        conv = _get_or_create_active_conversation(request)
-        messages: list[dict] = conv.get("messages") or []
-        messages.append({"role": "user", "content": user_message})
-        retrieval_query = _build_retrieval_query(user_message, messages)
-        result = self._qa_service.ask(retrieval_query, top_k=6, chat_messages=messages)
-
-        assistant_text = (result.get("answer") or "").strip()
-        if not assistant_text:
-            assistant_text = "我暂时无法生成回答。请换一种问法，或提供更具体的场景信息。"
-
-        hits = result.get("hits", []) or []
-        conv["hits"] = hits[:12]
-
-        messages.append({"role": "assistant", "content": assistant_text})
-        conv["messages"] = messages[-80:]
-        if conv.get("title") in ("新对话", "", None):
-            conv["title"] = user_message[:18] + ("…" if len(user_message) > 18 else "")
-        conv["updated_at"] = int(conv.get("updated_at") or 0) + 1
-        for i, c in enumerate(conversations):
-            if c.get("id") == conv.get("id"):
-                conversations.pop(i)
-                break
-        conversations.insert(0, conv)
-        _set_conversations(request, conversations)
-
-        return JsonResponse(
-            {
-                "ok": True,
-                "assistant": {"role": "assistant", "content": assistant_text},
-                "hits": hits,
-                "active_conversation_id": conv.get("id"),
-                "conversations": [{"id": c.get("id"), "title": c.get("title")} for c in conversations],
-            }
-        )
+        payload = _chat_payload(request, user_message)
+        return JsonResponse(success(data=payload))
 
 
 class ResetConversationView(View):
     def post(self, request, *args, **kwargs):
-        request.session.pop(SESSION_CONVERSATIONS_KEY, None)
-        request.session.pop(SESSION_ACTIVE_CONVERSATION_KEY, None)
-        conv = _create_conversation(request)
-        return JsonResponse(
-            {
-                "ok": True,
-                "active_conversation_id": conv.get("id"),
-                "conversations": [{"id": conv.get("id"), "title": conv.get("title")}],
-                "messages": conv.get("messages") or [],
-                "hits": conv.get("hits") or [],
-            }
-        )
+        return JsonResponse(success(data=_reset_payload(request)))
 
 
 class NewConversationView(View):
     def post(self, request, *args, **kwargs):
-        conv = _create_conversation(request)
-        conversations = _get_conversations(request)
-        return JsonResponse(
-            {
-                "ok": True,
-                "active_conversation_id": conv.get("id"),
-                "conversations": [{"id": c.get("id"), "title": c.get("title")} for c in conversations],
-                "messages": conv.get("messages") or [],
-                "hits": conv.get("hits") or [],
-            }
-        )
+        return JsonResponse(success(data=_new_payload(request)))
 
 
 class SwitchConversationView(View):
@@ -231,22 +249,42 @@ class SwitchConversationView(View):
             try:
                 payload = json.loads(request.body.decode("utf-8") or "{}")
             except json.JSONDecodeError:
-                return JsonResponse({"ok": False, "error": "请求格式错误"}, status=400)
+                return JsonResponse(error(msg="请求格式错误", code=400), status=400)
             cid = (payload.get("conversation_id") or "").strip()
         else:
             cid = (request.POST.get("conversation_id") or "").strip()
         if not cid:
-            return JsonResponse({"ok": False, "error": "缺少会话ID"}, status=400)
-        conv = _set_active_conversation(request, cid)
-        if conv is None:
-            return JsonResponse({"ok": False, "error": "会话不存在"}, status=404)
-        conversations = _get_conversations(request)
-        return JsonResponse(
-            {
-                "ok": True,
-                "active_conversation_id": conv.get("id"),
-                "conversations": [{"id": c.get("id"), "title": c.get("title")} for c in conversations],
-                "messages": conv.get("messages") or [],
-                "hits": conv.get("hits") or [],
-            }
-        )
+            return JsonResponse(error(msg="缺少会话ID", code=400), status=400)
+        payload = _switch_payload(request, cid)
+        if payload is None:
+            return JsonResponse(error(msg="会话不存在", code=404), status=404)
+        return JsonResponse(success(data=payload))
+
+
+@router.post("/chat")
+def api_chat(request, payload: ChatIn):
+    message = (payload.message or "").strip()
+    if not message:
+        return error(msg="请输入问题", code=400)
+    return success(data=_chat_payload(request, message))
+
+
+@router.post("/new")
+def api_new(request):
+    return success(data=_new_payload(request))
+
+
+@router.post("/reset")
+def api_reset(request):
+    return success(data=_reset_payload(request))
+
+
+@router.post("/switch")
+def api_switch(request, payload: SwitchIn):
+    cid = (payload.conversation_id or "").strip()
+    if not cid:
+        return error(msg="缺少会话ID", code=400)
+    data = _switch_payload(request, cid)
+    if data is None:
+        return error(msg="会话不存在", code=404)
+    return success(data=data)

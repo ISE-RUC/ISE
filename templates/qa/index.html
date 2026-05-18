@@ -265,15 +265,16 @@ form.addEventListener("submit", async (e) => {
   if (thinkingNode && thinkingNode.parentNode === chatInner) {
     chatInner.removeChild(thinkingNode);
   }
-  if (!ok || !data.ok) {
-    appendMessage("assistant", "请求失败，请稍后重试。");
+  const payload = data && data.code === 0 ? (data.data || {}) : null;
+  if (!payload) {
+    appendMessage("assistant", (data && data.msg) ? data.msg : "请求失败，请稍后重试。");
     sendBtn.disabled = false;
     return;
   }
-  activeConversationId = data.active_conversation_id || activeConversationId;
-  renderConversations(data.conversations || [], activeConversationId);
-  appendMessage("assistant", ((data.assistant && data.assistant.content) || ""));
-  renderHits(data.hits || []);
+  activeConversationId = payload.active_conversation_id || activeConversationId;
+  renderConversations(payload.conversations || [], activeConversationId);
+  appendMessage("assistant", ((payload.assistant && payload.assistant.content) || ""));
+  renderHits(payload.hits || []);
   sendBtn.disabled = false;
 });
 
@@ -281,11 +282,12 @@ newBtn.addEventListener("click", async () => {
   newBtn.disabled = true;
   const { ok, data } = await postJson("{% url 'qa:new' %}", {});
   newBtn.disabled = false;
-  if (!ok || !data.ok) return;
-  activeConversationId = data.active_conversation_id || "";
-  renderConversations(data.conversations || [], activeConversationId);
-  renderMessages(data.messages || []);
-  renderHits(data.hits || []);
+  const payload = data && data.code === 0 ? (data.data || {}) : null;
+  if (!payload) return;
+  activeConversationId = payload.active_conversation_id || "";
+  renderConversations(payload.conversations || [], activeConversationId);
+  renderMessages(payload.messages || []);
+  renderHits(payload.hits || []);
   closeDrawer();
 });
 
@@ -295,11 +297,12 @@ convList.addEventListener("click", async (e) => {
   const cid = btn.dataset.convId || "";
   if (!cid || cid === activeConversationId) return;
   const { ok, data } = await postJson("{% url 'qa:switch' %}", { conversation_id: cid });
-  if (!ok || !data.ok) return;
-  activeConversationId = data.active_conversation_id || cid;
-  renderConversations(data.conversations || [], activeConversationId);
-  renderMessages(data.messages || []);
-  renderHits(data.hits || []);
+  const payload = data && data.code === 0 ? (data.data || {}) : null;
+  if (!payload) return;
+  activeConversationId = payload.active_conversation_id || cid;
+  renderConversations(payload.conversations || [], activeConversationId);
+  renderMessages(payload.messages || []);
+  renderHits(payload.hits || []);
   closeDrawer();
 });
 
