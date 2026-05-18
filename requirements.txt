@@ -1,5 +1,5 @@
 Django>=4.2,<5.0
-djangorestframework>=3.14
+django-ninja>=1.1
 django-cors-headers>=4.0
 Pillow>=10.0
 python-docx>=1.1
