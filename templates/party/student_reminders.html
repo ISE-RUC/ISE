@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}提醒与待办{% endblock %}
+{% block content %}
+<section class="card">
+    {% include "party/_page_nav.html" %}
+    <div class="card-head">
+        <h2>提醒与待办</h2>
+        <span class="pill pill-primary">学生端</span>
+    </div>
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:party_student:dashboard' %}" class="btn btn-primary">返回学生端总览</a>
+        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
+    </div>
+    {% if member %}
+    <div class="dashboard-summary">
+        <div class="summary-item">
+            <div class="summary-label">当前阶段</div>
+            <div class="summary-value">{{ member.get_current_stage_display }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">当前节点</div>
+            <div class="summary-value">{% if current_stage_instance %}{{ current_stage_instance.stage_definition.name }}{% else %}暂无{% endif %}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">待处理提醒</div>
+            <div class="summary-value">{{ pending_reminder_count }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">已发送提醒</div>
+            <div class="summary-value">{{ sent_reminder_count }}</div>
+        </div>
+    </div>
+
+    {% if reminder_items %}
+    <div class="stack-list">
+        {% for item in reminder_items %}
+        <div class="stack-item">
+            <div>
+                <div class="rules-title-row">
+                    <strong>{{ item.title }}</strong>
+                    <span class="pill {% if item.status == 'sent' %}pill-success{% else %}pill-warning{% endif %}">
+                        {{ item.get_status_display }}
+                    </span>
+                    <span class="pill pill-primary">{{ item.get_reminder_type_display }}</span>
+                </div>
+                <div class="muted-text">{{ item.content|default:"系统提醒" }}</div>
+                {% if item.stage_instance %}
+                <div class="muted-text">关联节点：{{ item.stage_instance.stage_definition.name }}</div>
+                {% endif %}
+                <div class="muted-text">计划发送：{{ item.scheduled_at|date:"Y-m-d H:i" }}</div>
+            </div>
+            <div class="status-column">
+                <span class="pill pill-primary">{{ item.get_channel_display }}</span>
+                {% if item.sent_at %}
+                <div class="muted-text">发送时间：{{ item.sent_at|date:"Y-m-d H:i" }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-panel">
+        <h3>当前没有提醒事项</h3>
+        <p>材料准备、审批待办和逾期提醒会在这里集中展示。</p>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-panel">
+        <h3>当前账号还没有党团档案</h3>
+        <p>请先由管理老师建立档案，之后再查看提醒与待办。</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

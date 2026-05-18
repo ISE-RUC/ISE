@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}成员详情{% endblock %}
+{% block content %}
+<section class="card">
+    {% include "party/_page_nav.html" %}
+    <div class="card-head">
+        <h2>成员详情</h2>
+        <span class="pill pill-primary">管理视图</span>
+    </div>
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:party_admin:members' %}" class="btn btn-primary">返回成员列表</a>
+        <a href="{% url 'party:party_admin:dashboard' %}" class="btn">返回管理端总览</a>
+    </div>
+
+    <div class="detail-grid">
+        <div><span class="muted-text">学生</span><strong>{{ member.user.real_name|default:member.user.username }}</strong></div>
+        <div><span class="muted-text">学号</span><strong>{{ member.user.student_id|default:"--" }}</strong></div>
+        <div><span class="muted-text">当前阶段</span><strong>{{ member.get_current_stage_display }}</strong></div>
+        <div><span class="muted-text">当前节点</span><strong>{% if current_stage_instance %}{{ current_stage_instance.stage_definition.name }}{% else %}--{% endif %}</strong></div>
+        <div><span class="muted-text">年级</span><strong>{{ member.user.grade|default:"--" }}</strong></div>
+        <div><span class="muted-text">专业</span><strong>{{ member.user.major|default:"--" }}</strong></div>
+    </div>
+
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:party_admin:approvals' %}?member={{ member.id }}&return_to={{ current_page_url|urlencode }}" class="btn btn-primary">查看该学生审批任务</a>
+        <span class="pill pill-primary">待审批 {{ member_pending_tasks }} 项</span>
+        <span class="pill pill-warning">可撤回 {{ member_reversible_tasks }} 项</span>
+    </div>
+
+    <div class="section-header section-spaced">
+        <h3>流程时间轴</h3>
+        <a href="{% url 'party:party_admin:approvals' %}?member={{ member.id }}&return_to={{ current_page_url|urlencode }}" class="text-link">跳转到审批工作台</a>
+    </div>
+    <div class="timeline-list">
+        {% for item in timeline_items %}
+        <div class="timeline-item timeline-{{ item.state }}">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <div class="section-header">
+                    <h3>{{ item.definition.name }}</h3>
+                    {% if item.state == "done" %}
+                    <span class="pill pill-success">已完成</span>
+                    {% elif item.state == "current" %}
+                    <span class="pill pill-primary">当前节点</span>
+                    {% else %}
+                    <span class="pill pill-warning">待进入</span>
+                    {% endif %}
+                </div>
+                <div class="timeline-meta">
+                    <span>状态：{% if item.instance %}{{ item.instance.get_status_display }}{% else %}未创建{% endif %}</span>
+                    <span>开始：{% if item.instance and item.instance.started_at %}{{ item.instance.started_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                    <span>截止：{% if item.instance and item.instance.due_at %}{{ item.instance.due_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section-header section-spaced">
+        <h3>节点材料与审批链路</h3>
+    </div>
+    <div class="history-list">
+        {% for entry in history_entries %}
+        <article class="history-card">
+            <div class="section-header">
+                <h3>{{ entry.stage_instance.stage_definition.name }}</h3>
+                <span class="pill {% if entry.stage_instance.status == 'approved' %}pill-success{% elif entry.stage_instance.status == 'rejected' or entry.stage_instance.status == 'withdrawn' %}pill-warning{% else %}pill-primary{% endif %}">
+                    {{ entry.stage_instance.get_status_display }}
+                </span>
+            </div>
+
+            <div class="history-section">
+                <h4>材料版本</h4>
+                {% if entry.materials %}
+                <div class="stack-list">
+                    {% for material in entry.materials %}
+                    <div class="stack-item">
+                        <div>
+                            <strong>{{ material.material_type.name }}</strong>
+                            <div class="muted-text">提交时间：{{ material.submitted_at|date:"Y-m-d H:i" }}</div>
+                        </div>
+                        <div class="status-column">
+                            <span class="pill pill-primary">v{{ material.version }}</span>
+                            <div class="muted-text">{{ material.get_review_status_display }}</div>
+                            <a href="{{ material.file.url }}" target="_blank" rel="noopener noreferrer" class="text-link">下载材料</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-panel compact">
+                    <p>当前节点还没有材料提交记录。</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="history-section">
+                <h4>审批链路</h4>
+                {% if entry.task_timeline %}
+                <div class="stack-list">
+                    {% for task_entry in entry.task_timeline %}
+                    <div class="history-flow-card {% if task_entry.task.status == 'withdrawn' %}history-flow-withdrawn{% endif %}">
+                        <div class="section-header">
+                            <h5>任务 #{{ task_entry.task.id }}</h5>
+                            <span class="pill {% if task_entry.task.status == 'approved' %}pill-success{% elif task_entry.task.status == 'rejected' or task_entry.task.status == 'withdrawn' %}pill-warning{% else %}pill-primary{% endif %}">
+                                {{ task_entry.task.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="timeline-meta">
+                            <span>创建：{{ task_entry.task.created_at|date:"Y-m-d H:i" }}</span>
+                            <span>处理：{% if task_entry.task.processed_at %}{{ task_entry.task.processed_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                            <span>审批人：{% if task_entry.task.assignee %}{{ task_entry.task.assignee.real_name|default:task_entry.task.assignee.username }}{% else %}待分配{% endif %}</span>
+                        </div>
+                        {% if task_entry.withdraw_action %}
+                        <div class="note-box">
+                            已撤回。撤回时间：{{ task_entry.withdraw_action.created_at|date:"Y-m-d H:i" }}。
+                            撤回人：{% if task_entry.withdraw_action.operator %}{{ task_entry.withdraw_action.operator.real_name|default:task_entry.withdraw_action.operator.username }}{% else %}系统{% endif %}。
+                            {% if task_entry.withdraw_action.comment %}
+                            说明：{{ task_entry.withdraw_action.comment }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        {% if task_entry.reopen_action %}
+                        <div class="note-box note-box-primary">
+                            撤回后状态：已重新打开审核，当前节点回到待审批。时间：{{ task_entry.reopen_action.created_at|date:"Y-m-d H:i" }}。
+                            {% if task_entry.reopen_action.comment %}
+                            说明：{{ task_entry.reopen_action.comment }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="stack-list compact-stack">
+                            {% for action in task_entry.actions %}
+                            <div class="stack-item">
+                                <div>
+                                    <strong>{{ action.get_action_display }}</strong>
+                                    <div class="muted-text">
+                                        操作人：{% if action.operator %}{{ action.operator.real_name|default:action.operator.username }}{% else %}系统{% endif %}
+                                    </div>
+                                    {% if action.comment %}
+                                    <div class="muted-text">{{ action.comment }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="status-column">
+                                    <div class="muted-text">{{ action.created_at|date:"Y-m-d H:i" }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-panel compact">
+                    <p>当前节点还没有审批任务。</p>
+                </div>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
