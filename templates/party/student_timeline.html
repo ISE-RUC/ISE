@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}流程时间轴{% endblock %}
+{% block content %}
+<section class="card">
+    {% include "party/_page_nav.html" %}
+    <div class="card-head">
+        <h2>流程时间轴</h2>
+        <span class="pill pill-warning">学生视图</span>
+    </div>
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:party_student:dashboard' %}" class="btn btn-primary">返回学生端总览</a>
+        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
+    </div>
+    {% if member %}
+    <p class="hero-desc">当前展示账号所属的标准党团流程与个人节点进度。已通过节点、当前节点和后续节点会分别标记。</p>
+    <div class="timeline-list">
+        {% for item in timeline_items %}
+        <div class="timeline-item timeline-{{ item.state }}">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <div class="section-header">
+                    <h3>{{ item.definition.name }}</h3>
+                    {% if item.state == "done" %}
+                    <span class="pill pill-success">已完成</span>
+                    {% elif item.state == "current" %}
+                    <span class="pill pill-primary">当前节点</span>
+                    {% else %}
+                    <span class="pill pill-warning">待进入</span>
+                    {% endif %}
+                </div>
+                <p class="muted-text">阶段：{{ item.definition.get_stage_display }} · 最短停留 {{ item.definition.min_duration_days }} 天</p>
+                {% if item.instance %}
+                <div class="timeline-meta">
+                    <span>状态：{{ item.instance.get_status_display }}</span>
+                    <span>开始：{% if item.instance.started_at %}{{ item.instance.started_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                    <span>截止：{% if item.instance.due_at %}{{ item.instance.due_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                </div>
+                {% if item.instance.remark %}
+                <div class="note-box">{{ item.instance.remark }}</div>
+                {% endif %}
+                {% else %}
+                <div class="timeline-meta">
+                    <span>该节点尚未创建实例，待前一节点通过后自动推进。</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-panel">
+        <h3>暂无时间轴数据</h3>
+        <p>当前账号还没有党团档案，无法展示个人进度。</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}党团事务管理端{% endblock %}
+{% block content %}
+<section class="card">
+    {% include "party/_page_nav.html" %}
+    <div class="card-head">
+        <h2>党团事务管理端</h2>
+        <span class="pill pill-primary">管理工作台</span>
+    </div>
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
+    </div>
+    <p class="hero-desc">这里集中查看流程统计、待审批任务、超期提醒和批量操作入口，便于老师把握党团事务办理整体状态。</p>
+    <div class="dashboard-summary section-spaced">
+        <div class="summary-item">
+            <div class="summary-label">待审批任务</div>
+            <div class="summary-value">{{ pending_task_count }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">待发送提醒</div>
+            <div class="summary-value">{{ pending_reminder_count }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">已发送提醒</div>
+            <div class="summary-value">{{ sent_reminder_count }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">逾期节点</div>
+            <div class="summary-value">{{ overdue_stage_count }}</div>
+        </div>
+    </div>
+    <div class="action-grid">
+        <a href="{% url 'party:party_admin:members' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>成员列表</h3>
+            <p>按年级、专业、当前阶段筛选学生党团档案。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+        <a href="{% url 'party:party_admin:approvals' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>审批工作台</h3>
+            <p>查看待审批任务，执行通过、驳回、撤回和批量处理。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+        <a href="{% url 'party:party_admin:reminders' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>提醒概览</h3>
+            <p>集中查看待发送提醒、已发送提醒和逾期节点状态。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+        <a href="{% url 'party:party_admin:rules' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>流程规则</h3>
+            <p>维护节点定义、材料要求与审批角色配置。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+        <a href="{% url 'party:party_admin:import_export' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
+            <h3>批量导入导出</h3>
+            <p>通过 Excel 批量导入学生流程数据，并导出当前流程状态。</p>
+            <div class="link">进入页面 →</div>
+        </a>
+    </div>
+</section>
+{% endblock %}

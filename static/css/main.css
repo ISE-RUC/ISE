@@ -468,9 +468,11 @@ main {
 }
 .qa-drawer-backdrop.show{opacity:1;pointer-events:auto}
 
+
 @media (max-width: 1080px){
     .grid-main{grid-template-columns:1fr}
     .action-grid{grid-template-columns:repeat(2, minmax(0,1fr))}
+    .cert-apply-grid{grid-template-columns:1fr}
     .hero-title{font-size:28px}
     .qa-layout{height:auto;min-height:720px}
     .qa-sidebar{width:250px}
@@ -487,4 +489,5 @@ main {
     .qa-sidebar{width:auto;border-right:none;border-bottom:1px solid var(--line)}
     .qa-main-top{padding:16px}
     .qa-empty-title{font-size:26px}
+
 }

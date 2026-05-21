@@ -4,6 +4,7 @@ API 路由配置
 """
 from ninja import NinjaAPI
 from ninja.security import django_auth
+from apps.certificate.views import router as certificate_router
 
 # 创建 API 实例
 api = NinjaAPI(
@@ -38,3 +39,6 @@ def protected(request):
 from apps.qa.views import router as qa_router
 
 api.add_router("/qa/", qa_router, tags=["问答系统"])
+
+api.add_router("/certificate/", certificate_router, tags=["电子证明与审批"])
+
