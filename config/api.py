@@ -39,4 +39,4 @@ def protected(request):
 from apps.certificate.api import router as certificate_router
 
 
-api.add_router("/certificates/", certificate_router)
+api.add_router("/certificates/", certificate_router, tags=["Certificate workflow"])

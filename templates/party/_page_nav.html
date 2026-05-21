@@ -1,0 +1,25 @@
+{% if breadcrumbs or page_back_url %}
+<div class="breadcrumb-bar">
+    {% if breadcrumbs %}
+    <nav aria-label="页面导航">
+        <ol class="breadcrumb-list">
+            {% for item in breadcrumbs %}
+            <li class="breadcrumb-item">
+                {% if item.url and not forloop.last %}
+                <a href="{{ item.url }}">{{ item.label }}</a>
+                {% else %}
+                <span class="{% if forloop.last %}breadcrumb-current{% endif %}">{{ item.label }}</span>
+                {% endif %}
+            </li>
+            {% if not forloop.last %}
+            <li class="breadcrumb-sep" aria-hidden="true">/</li>
+            {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+    {% endif %}
+    {% if page_back_url %}
+    <a href="{{ page_back_url }}" class="btn breadcrumb-back">{{ page_back_label }}</a>
+    {% endif %}
+</div>
+{% endif %}

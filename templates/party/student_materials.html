@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}材料提交{% endblock %}
+{% block content %}
+<section class="card">
+    {% include "party/_page_nav.html" %}
+    <div class="card-head">
+        <h2>材料提交</h2>
+        <span class="pill pill-warning">学生视图</span>
+    </div>
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:party_student:dashboard' %}" class="btn btn-primary">返回学生端总览</a>
+        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
+    </div>
+    {% if member and current_stage_instance %}
+    <p class="hero-desc">当前节点为 {{ current_stage_instance.stage_definition.name }}。先上传必需材料，材料齐备后再提交审批。</p>
+
+    <div class="grid-main party-two-column">
+        <div class="card card-subtle">
+            <div class="section-header">
+                <h3>材料清单</h3>
+                {% if pending_task %}
+                <span class="pill pill-primary">已提交审批</span>
+                {% elif all_materials_ready %}
+                <span class="pill pill-success">可提交审批</span>
+                {% else %}
+                <span class="pill pill-warning">待补材料</span>
+                {% endif %}
+            </div>
+
+            <div class="stack-list">
+                {% for item in material_items %}
+                <div class="stack-item">
+                    <div>
+                        <strong>{{ item.material_type.name }}</strong>
+                        <div class="muted-text">{{ item.requirement.note|default:"当前节点默认必需材料" }}</div>
+                    </div>
+                    <div class="status-column">
+                        {% if item.submission %}
+                        <span class="pill pill-success">已上传 v{{ item.submission.version }}</span>
+                        <div class="muted-text">{{ item.submission.submitted_at|date:"Y-m-d H:i" }}</div>
+                        <a href="{{ item.submission.file.url }}" target="_blank" rel="noopener noreferrer" class="text-link">下载材料</a>
+                        {% else %}
+                        <span class="pill pill-warning">未上传</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="section-header section-spaced">
+                <h3>提交审批</h3>
+            </div>
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="submit_approval">
+                {{ submit_form.non_field_errors }}
+                <div class="form-row">
+                    <label for="{{ submit_form.comment.id_for_label }}">补充说明</label>
+                    {{ submit_form.comment }}
+                </div>
+                <button type="submit" class="btn btn-primary" {% if pending_task %}disabled{% endif %}>提交当前节点审批</button>
+            </form>
+        </div>
+
+        <div class="card card-subtle">
+            <div class="section-header">
+                <h3>上传材料</h3>
+                <span class="pill pill-primary">当前节点</span>
+            </div>
+            <form method="post" enctype="multipart/form-data" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload_material">
+                {{ material_form.non_field_errors }}
+                <div class="form-row">
+                    <label for="{{ material_form.material_type.id_for_label }}">材料类型</label>
+                    {{ material_form.material_type }}
+                    {{ material_form.material_type.errors }}
+                </div>
+                <div class="form-row">
+                    <label for="{{ material_form.file.id_for_label }}">文件</label>
+                    {{ material_form.file }}
+                    {{ material_form.file.errors }}
+                </div>
+                <button type="submit" class="btn btn-primary">上传材料</button>
+            </form>
+        </div>
+    </div>
+    {% elif member %}
+    <div class="empty-panel">
+        <h3>当前没有可提交材料的节点</h3>
+        <p>请等待老师审批结果，或由系统推进到下一个节点后再继续操作。</p>
+    </div>
+    {% else %}
+    <div class="empty-panel">
+        <h3>暂无党团档案</h3>
+        <p>当前账号还没有建立流程档案，无法提交材料。</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

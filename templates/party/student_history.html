@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}办理历史{% endblock %}
+{% block content %}
+<section class="card">
+    {% include "party/_page_nav.html" %}
+    <div class="card-head">
+        <h2>办理历史</h2>
+        <span class="pill pill-warning">学生视图</span>
+    </div>
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:party_student:dashboard' %}" class="btn btn-primary">返回学生端总览</a>
+        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
+    </div>
+    {% if member %}
+    <p class="hero-desc">这里展示每个节点的材料版本、审批记录和老师意见，方便学生回看完整办理过程。</p>
+
+    <div class="history-list">
+        {% for entry in history_entries %}
+        <article class="history-card">
+            <div class="section-header">
+                <h3>{{ entry.stage_instance.stage_definition.name }}</h3>
+                <span class="pill {% if entry.stage_instance.status == 'approved' %}pill-success{% elif entry.stage_instance.status == 'rejected' %}pill-warning{% else %}pill-primary{% endif %}">
+                    {{ entry.stage_instance.get_status_display }}
+                </span>
+            </div>
+            <div class="timeline-meta">
+                <span>开始：{% if entry.stage_instance.started_at %}{{ entry.stage_instance.started_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                <span>完成：{% if entry.stage_instance.completed_at %}{{ entry.stage_instance.completed_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                <span>截止：{% if entry.stage_instance.due_at %}{{ entry.stage_instance.due_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+            </div>
+
+            <div class="history-section">
+                <h4>材料版本</h4>
+                {% if entry.materials %}
+                <div class="stack-list">
+                    {% for material in entry.materials %}
+                    <div class="stack-item">
+                        <div>
+                            <strong>{{ material.material_type.name }}</strong>
+                            <div class="muted-text">
+                                提交时间：{{ material.submitted_at|date:"Y-m-d H:i" }}
+                            </div>
+                        </div>
+                        <div class="status-column">
+                            <span class="pill pill-primary">v{{ material.version }}</span>
+                            <div class="muted-text">{{ material.get_review_status_display }}</div>
+                            <a href="{{ material.file.url }}" target="_blank" rel="noopener noreferrer" class="text-link">下载材料</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-panel compact">
+                    <p>当前节点还没有材料提交记录。</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="history-section">
+                <h4>审批链路</h4>
+                {% if entry.task_timeline %}
+                <div class="stack-list">
+                    {% for task_entry in entry.task_timeline %}
+                    <div class="history-flow-card {% if task_entry.was_withdrawn %}history-flow-withdrawn{% endif %}">
+                        <div class="section-header">
+                            <h5>审批任务 #{{ task_entry.task.id }}</h5>
+                            <span class="pill {% if task_entry.task.status == 'approved' %}pill-success{% elif task_entry.task.status == 'rejected' or task_entry.task.status == 'withdrawn' %}pill-warning{% else %}pill-primary{% endif %}">
+                                {{ task_entry.task.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="timeline-meta">
+                            <span>创建：{{ task_entry.task.created_at|date:"Y-m-d H:i" }}</span>
+                            <span>处理：{% if task_entry.task.processed_at %}{{ task_entry.task.processed_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                            <span>审批人：{% if task_entry.task.assignee %}{{ task_entry.task.assignee.real_name|default:task_entry.task.assignee.username }}{% else %}待分配{% endif %}</span>
+                        </div>
+                        {% if task_entry.was_withdrawn %}
+                        <div class="note-box">
+                            原审批结果已撤回。
+                            {% if task_entry.withdraw_action %}
+                            撤回时间：{{ task_entry.withdraw_action.created_at|date:"Y-m-d H:i" }}。
+                            撤回人：{% if task_entry.withdraw_action.operator %}{{ task_entry.withdraw_action.operator.real_name|default:task_entry.withdraw_action.operator.username }}{% else %}系统{% endif %}。
+                            {% if task_entry.withdraw_action.comment %}
+                            说明：{{ task_entry.withdraw_action.comment }}
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        {% if task_entry.reopen_action %}
+                        <div class="note-box note-box-primary">
+                            撤回后状态：该节点已重新打开审核，当前回到待审批。
+                            时间：{{ task_entry.reopen_action.created_at|date:"Y-m-d H:i" }}。
+                            {% if task_entry.reopen_action.comment %}
+                            说明：{{ task_entry.reopen_action.comment }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="stack-list compact-stack">
+                            {% for action in task_entry.actions %}
+                            <div class="stack-item">
+                                <div>
+                                    <strong>{{ action.get_action_display }}</strong>
+                                    <div class="muted-text">
+                                        操作人：{% if action.operator %}{{ action.operator.real_name|default:action.operator.username }}{% else %}系统{% endif %}
+                                    </div>
+                                    {% if action.comment %}
+                                    <div class="muted-text">{{ action.comment }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="status-column">
+                                    <div class="muted-text">{{ action.created_at|date:"Y-m-d H:i" }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% elif entry.actions %}
+                <div class="stack-list">
+                    {% for action in entry.actions %}
+                    <div class="stack-item">
+                        <div>
+                            <strong>{{ action.get_action_display }}</strong>
+                            <div class="muted-text">
+                                操作人：{{ action.operator.real_name|default:action.operator.username|default:"系统" }}
+                            </div>
+                            {% if action.comment %}
+                            <div class="muted-text">{{ action.comment }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="status-column">
+                            <div class="muted-text">{{ action.created_at|date:"Y-m-d H:i" }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-panel compact">
+                    <p>当前节点还没有审批动作记录。</p>
+                </div>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-panel">
+        <h3>暂无党团档案</h3>
+        <p>当前账号还没有建立流程档案，无法查看历史记录。</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
