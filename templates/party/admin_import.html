@@ -2,137 +2,142 @@
 {% block title %}批量导入导出{% endblock %}
 {% block content %}
 <section class="card">
-    {% include "party/_page_nav.html" %}
-    <div class="card-head">
-        <div>
-            <h2>批量导入导出</h2>
-            <p class="hero-desc">使用 Excel 导入学生当前党团流程状态，或导出当前系统内的成员流程总表。</p>
+    <div class="party-page-shell">
+        <div class="party-hero">
+            <div class="party-hero-main">
+                <div class="party-eyebrow">党团模块 · 管理端</div>
+                <h1 class="hero-title party-hero-title">批量导入导出</h1>
+                <p class="hero-desc">使用 Excel 批量维护学生当前党团流程状态，并导出系统中的成员进度、审批记录和线下核对清单。</p>
+                <div class="party-inline-meta">
+                    <span class="party-inline-chip">先预校验</span>
+                    <span class="party-inline-chip">确认后入库</span>
+                    <span class="party-inline-chip">支持模板下载与导出回查</span>
+                </div>
+            </div>
+            <div class="party-hero-side">
+                <span class="pill pill-primary">数据维护</span>
+                <div class="action-bar">
+                    <a href="{% url 'party:party_admin:dashboard' %}" class="btn btn-primary">返回管理总览</a>
+                    <a href="{% url 'party:index' %}" class="btn party-ghost-btn">返回模块入口</a>
+                </div>
+            </div>
         </div>
-        <span class="pill pill-primary">管理视图</span>
-    </div>
-    <div class="action-bar section-spaced">
-        <a href="{% url 'party:party_admin:dashboard' %}" class="btn btn-primary">返回管理端总览</a>
-        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
-    </div>
 
-    <div class="rules-grid section-spaced">
-        <div class="card card-subtle">
-            <div class="section-header">
-                <h3>导入学生流程数据</h3>
-                <a href="{% url 'party:party_admin:import_export' %}?action=download_template" class="text-link">下载模板</a>
-            </div>
-            <div class="note-box note-box-primary">
-                导入模板用于更新“当前状态”，并支持一次性初始化历史已完成节点。当前不是全量历史回灌，但已经可以批量补齐“已完成节点 + 当前节点”。
-            </div>
-            <div class="section-spaced">
+        <div class="rules-grid">
+            <div class="card card-subtle">
                 <div class="section-header">
-                    <h3>模板字段</h3>
+                    <h3>导入学生流程数据</h3>
+                    <a href="{% url 'party:party_admin:import_export' %}?action=download_template" class="text-link">下载模板</a>
                 </div>
-                <div class="stack-list">
-                    <div class="stack-item"><strong>username / student_id</strong><span class="muted-text">至少需要 `username`，用于定位或创建学生账号。</span></div>
-                    <div class="stack-item"><strong>track_type / current_stage</strong><span class="muted-text">流程类型与当前阶段，使用代码值，例如 `party`、`league`、`applicant`。</span></div>
-                    <div class="stack-item"><strong>completed_stage_definition_codes</strong><span class="muted-text">使用英文逗号填写历史已完成节点编码，例如 `party_applicant,party_activist` 或 `league_applicant,league_activist`。</span></div>
-                    <div class="stack-item"><strong>current_stage_definition_code / current_stage_status</strong><span class="muted-text">当前节点编码与节点状态，例如 `party_applicant`、`league_applicant`、`open`。</span></div>
-                    <div class="stack-item"><strong>时间字段</strong><span class="muted-text">日期使用 `YYYY-MM-DD`，时间使用 `YYYY-MM-DD HH:MM:SS`。</span></div>
+                <div class="note-box note-box-primary">
+                    导入模板用于更新“当前状态”，并支持一次性初始化历史已完成节点。当前不是全量历史回灌，但已经可以批量补齐“已完成节点 + 当前节点”。
                 </div>
-            </div>
-            {% if import_error_rows %}
-            <div class="section-spaced">
-                <div class="section-header">
-                    <h3>最近一次导入错误</h3>
-                    <a href="{% url 'party:party_admin:import_export' %}?action=download_errors" class="text-link">下载错误清单</a>
-                </div>
-                <div class="stack-list">
-                    {% for item in import_error_rows|slice:":5" %}
-                    <div class="stack-item">
-                        <div>
-                            <strong>第 {{ item.row_number }} 行</strong>
-                            <div class="muted-text">{{ item.message }}</div>
-                        </div>
+
+                <div class="section-spaced">
+                    <div class="section-header">
+                        <h3>模板字段</h3>
                     </div>
-                    {% endfor %}
+                    <div class="stack-list">
+                        <div class="stack-item"><strong>username / student_id</strong><span class="muted-text">至少需要 `username`，用于定位或创建学生账号。</span></div>
+                        <div class="stack-item"><strong>track_type / current_stage</strong><span class="muted-text">流程类型与当前阶段，使用代码值，例如 `party`、`league`、`applicant`。</span></div>
+                        <div class="stack-item"><strong>completed_stage_definition_codes</strong><span class="muted-text">使用英文逗号填写历史已完成节点编码，例如 `party_applicant,party_activist`。</span></div>
+                        <div class="stack-item"><strong>current_stage_definition_code / current_stage_status</strong><span class="muted-text">当前节点编码与节点状态，例如 `party_applicant`、`open`。</span></div>
+                        <div class="stack-item"><strong>时间字段</strong><span class="muted-text">日期使用 `YYYY-MM-DD`，时间使用 `YYYY-MM-DD HH:MM:SS`。</span></div>
+                    </div>
                 </div>
-            </div>
-            {% endif %}
-            {% if import_preview_rows %}
-            <div class="section-spaced">
-                <div class="section-header">
-                    <h3>导入预校验结果</h3>
-                    <span class="pill pill-success">{{ import_preview_rows|length }} 条可导入</span>
-                </div>
-                <div class="stack-list">
-                    {% for item in import_preview_rows|slice:":6" %}
-                    <div class="stack-item">
-                        <div>
-                            <strong>第 {{ item.row_number }} 行 - {{ item.preview.real_name|default:item.preview.username }}</strong>
-                            <div class="muted-text">
-                                学生账号：{{ item.preview.username }} / {{ item.preview.student_id|default:"--" }}
-                            </div>
-                            <div class="muted-text">
-                                学生档案：将{{ item.preview.student_action }}账号，{{ item.preview.member_action }}党团档案
-                            </div>
-                            <div class="muted-text">
-                                当前阶段：{{ item.preview.current_stage }} | 当前节点：{{ item.preview.current_stage_definition_code|default:"自动初始化首节点" }} | 节点状态：{{ item.preview.current_stage_status }}
-                            </div>
-                            <div class="muted-text">
-                                历史完成节点：{{ item.preview.completed_stage_codes|join:", "|default:"无" }}
+
+                {% if import_error_rows %}
+                <div class="section-spaced">
+                    <div class="section-header">
+                        <h3>最近一次导入错误</h3>
+                        <a href="{% url 'party:party_admin:import_export' %}?action=download_errors" class="text-link">下载错误清单</a>
+                    </div>
+                    <div class="stack-list">
+                        {% for item in import_error_rows|slice:":5" %}
+                        <div class="stack-item">
+                            <div>
+                                <strong>第 {{ item.row_number }} 行</strong>
+                                <div class="muted-text">{{ item.message }}</div>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
-                {% if import_preview_rows|length > 6 %}
-                <div class="muted-text section-spaced">仅展示前 6 条，确认导入时将处理全部 {{ import_preview_rows|length }} 条记录。</div>
                 {% endif %}
-                <div class="action-bar section-spaced">
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="operation" value="confirm_import">
-                        <button type="submit" class="btn btn-primary">确认导入写库</button>
-                    </form>
-                    <a href="{% url 'party:party_admin:import_export' %}?action=clear_preview" class="btn">取消本次预览</a>
-                </div>
-            </div>
-            {% endif %}
-            <form method="post" enctype="multipart/form-data" class="inline-form section-spaced">
-                {% csrf_token %}
-                <input type="hidden" name="operation" value="preview_import">
-                {{ import_form.non_field_errors }}
-                <div class="form-row">
-                    <label for="{{ import_form.file.id_for_label }}">上传 Excel 文件</label>
-                    {{ import_form.file }}
-                    {{ import_form.file.errors }}
-                </div>
-                <button type="submit" class="btn btn-primary">先做预校验</button>
-            </form>
-        </div>
 
-        <div class="card card-subtle">
-            <div class="section-header">
-                <h3>导出当前流程状态</h3>
+                {% if import_preview_rows %}
+                <div class="section-spaced">
+                    <div class="section-header">
+                        <h3>导入预校验结果</h3>
+                        <span class="pill pill-success">{{ import_preview_rows|length }} 条可导入</span>
+                    </div>
+                    <div class="stack-list">
+                        {% for item in import_preview_rows|slice:":6" %}
+                        <div class="stack-item">
+                            <div>
+                                <strong>第 {{ item.row_number }} 行 - {{ item.preview.real_name|default:item.preview.username }}</strong>
+                                <div class="muted-text">学生账号：{{ item.preview.username }} / {{ item.preview.student_id|default:"--" }}</div>
+                                <div class="muted-text">学生档案：将{{ item.preview.student_action }}账号，{{ item.preview.member_action }}党团档案</div>
+                                <div class="muted-text">当前阶段：{{ item.preview.current_stage }} | 当前节点：{{ item.preview.current_stage_definition_code|default:"自动初始化首节点" }} | 节点状态：{{ item.preview.current_stage_status }}</div>
+                                <div class="muted-text">历史完成节点：{{ item.preview.completed_stage_codes|join:", "|default:"无" }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if import_preview_rows|length > 6 %}
+                    <div class="muted-text section-spaced">仅展示前 6 条，确认导入时将处理全部 {{ import_preview_rows|length }} 条记录。</div>
+                    {% endif %}
+                    <div class="action-bar section-spaced">
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="operation" value="confirm_import">
+                            <button type="submit" class="btn btn-primary">确认导入写库</button>
+                        </form>
+                        <a href="{% url 'party:party_admin:import_export' %}?action=clear_preview" class="btn">取消本次预览</a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <form method="post" enctype="multipart/form-data" class="inline-form section-spaced">
+                    {% csrf_token %}
+                    <input type="hidden" name="operation" value="preview_import">
+                    {{ import_form.non_field_errors }}
+                    <div class="form-row">
+                        <label for="{{ import_form.file.id_for_label }}">上传 Excel 文件</label>
+                        {{ import_form.file }}
+                        {{ import_form.file.errors }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">先做预校验</button>
+                </form>
             </div>
-            <p class="hero-desc">导出结果包含学生基础信息、当前阶段、当前节点、时间字段、待审批任务数、待发送提醒数，便于线下校验和继续维护。</p>
-            <div class="stack-list section-spaced">
-                <div class="stack-item">
-                    <div>
-                        <strong>成员流程状态总表</strong>
-                        <div class="muted-text">导出所有党团档案的当前状态为 `.xlsx` 文件。</div>
-                    </div>
-                    <a href="{% url 'party:party_admin:import_export' %}?action=export_members" class="btn btn-primary">导出 Excel</a>
+
+            <div class="card card-subtle">
+                <div class="section-header">
+                    <h3>导出当前流程状态</h3>
                 </div>
-                <div class="stack-item">
-                    <div>
-                        <strong>审批记录明细</strong>
-                        <div class="muted-text">导出审批任务和审批动作两个工作表，便于线下核对审批链路。</div>
+                <p class="hero-desc">导出结果包含学生基础信息、当前阶段、当前节点、时间字段、待审批任务数和提醒数据，便于线下校验和继续维护。</p>
+                <div class="stack-list section-spaced">
+                    <div class="stack-item">
+                        <div>
+                            <strong>成员流程状态总表</strong>
+                            <div class="muted-text">导出所有党团档案的当前状态为 `.xlsx` 文件。</div>
+                        </div>
+                        <a href="{% url 'party:party_admin:import_export' %}?action=export_members" class="btn btn-primary">导出 Excel</a>
                     </div>
-                    <a href="{% url 'party:party_admin:import_export' %}?action=export_approvals" class="btn btn-primary">导出审批明细</a>
-                </div>
-                <div class="stack-item">
-                    <div>
-                        <strong>导入模板</strong>
-                        <div class="muted-text">建议先下载模板，再在模板基础上维护数据后导入。</div>
+                    <div class="stack-item">
+                        <div>
+                            <strong>审批记录明细</strong>
+                            <div class="muted-text">导出审批任务和审批动作两个工作表，便于线下核对审批链路。</div>
+                        </div>
+                        <a href="{% url 'party:party_admin:import_export' %}?action=export_approvals" class="btn btn-primary">导出审批明细</a>
                     </div>
-                    <a href="{% url 'party:party_admin:import_export' %}?action=download_template" class="btn">下载模板</a>
+                    <div class="stack-item">
+                        <div>
+                            <strong>导入模板</strong>
+                            <div class="muted-text">建议先下载模板，再在模板基础上维护数据后导入。</div>
+                        </div>
+                        <a href="{% url 'party:party_admin:import_export' %}?action=download_template" class="btn">下载模板</a>
+                    </div>
                 </div>
             </div>
         </div>
