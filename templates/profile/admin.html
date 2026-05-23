@@ -2,6 +2,16 @@
 {% block title %}荣誉画像 - 管理端{% endblock %}
 {% block content %}
 <section style="max-width:1200px;margin:0 auto;padding:2rem;">
+    {% if no_permission %}
+    <div class="card">
+        <div style="text-align:center;padding:3rem;">
+            <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+            <h2 style="margin-bottom:1rem;">您没有权限</h2>
+            <p style="color:var(--muted);margin-bottom:2rem;">只有管理老师和学院领导可以访问管理端</p>
+            <a href="{% url 'profile:select' %}" class="btn">返回选择</a>
+        </div>
+    </div>
+    {% else %}
     <div class="card">
         <div class="hero-head">
             <div>
@@ -154,5 +164,6 @@
         <a href="{% url 'profile:select' %}" class="btn">返回选择</a>
         <a href="{% url 'users:home' %}" class="btn" style="margin-left:12px;">返回首页</a>
     </div>
+    {% endif %}
 </section>
 {% endblock %}

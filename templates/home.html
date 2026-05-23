@@ -55,12 +55,12 @@
                 <p>个人荣誉、骨干工作量、成长记录</p>
                 <div class="link">进入功能 →</div>
             </a>
-            <div class="action-item">
+            <a href="{% url 'workflow:select' %}" class="action-item">
                 <div class="icon-wrap">🕒</div>
                 <h3>我的流程</h3>
                 <p>审批状态、时间轴、待办事项与倒计时</p>
                 <div class="link">进入功能 →</div>
-            </div>
+            </a>
         </div>
     </div>
 
@@ -80,12 +80,21 @@
         <div class="card">
             <div class="card-head">
                 <h2>我的待办</h2>
-                <span style="font-size:14px;color:var(--muted)">3 项待处理</span>
+                <span style="font-size:14px;color:var(--muted)">{{ todo_count }} 项待处理</span>
             </div>
             <div class="todo-list">
-                <div class="todo-item"><span class="dot"></span><span>提交思想汇报（截止 04-15）</span></div>
-                <div class="todo-item"><span class="dot"></span><span>完善联系方式绑定</span></div>
-                <div class="todo-item"><span class="dot"></span><span>查看新发布奖助政策</span></div>
+                {% for todo in todos %}
+                <a href="{{ todo.url }}" class="todo-item" style="text-decoration:none;color:inherit;">
+                    <span class="dot"></span>
+                    <span>
+                        {{ todo.title }}
+                        {% if todo.step_name %} - {{ todo.step_name }}{% endif %}
+                        {% if todo.deadline %}（截止 {{ todo.deadline|date:"m-d H:i" }}）{% endif %}
+                    </span>
+                </a>
+                {% empty %}
+                <div class="todo-item"><span class="dot"></span><span>暂无待办事项</span></div>
+                {% endfor %}
             </div>
         </div>
     </div>

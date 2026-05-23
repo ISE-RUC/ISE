@@ -15,4 +15,5 @@ urlpatterns = [
     path('certificate/', include('apps.certificate.urls', namespace='certificate')),
     path('notification/', include('apps.notification.urls', namespace='notification')),
     path('profile/', include('apps.profile.urls', namespace='profile')),
+    path('workflow/', include('apps.workflow.urls', namespace='workflow')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

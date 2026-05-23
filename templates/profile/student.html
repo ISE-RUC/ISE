@@ -8,9 +8,10 @@
                 <h1 class="hero-title">我的荣誉记录</h1>
                 <p class="hero-desc">
                     {% if student %}
-                    {{ student.real_name|default:student.username }}（{{ student.student_id }}）
+                    {{ student.real_name|default:student.username }}
+                    {% if student.student_id %}（{{ student.student_id }}）{% endif %}
                     {% else %}
-                    请先设置学生身份
+                    请先登录
                     {% endif %}
                 </p>
             </div>

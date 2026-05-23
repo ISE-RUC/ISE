@@ -22,14 +22,6 @@ CATEGORY_CHOICES = [
 ]
 
 
-def _get_current_student(request):
-    """获取当前学生用户，后续从 request.user 获取"""
-    student_id = request.session.get('current_student_id')
-    if student_id:
-        return User.objects.filter(student_id=student_id, role=User.ROLE_STUDENT).first()
-    return None
-
-
 def _serialize_honor(honor):
     return {
         'id': honor.id,
@@ -50,6 +42,12 @@ class SelectView(TemplateView):
     """选择端页面"""
     template_name = 'profile/select.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context['is_admin'] = user.is_authenticated and user.role in (User.ROLE_ADMIN, User.ROLE_LEADER)
+        return context
+
 
 class StudentView(TemplateView):
     """学生端 - 展示自己的荣誉"""
@@ -57,12 +55,12 @@ class StudentView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        student = _get_current_student(self.request)
+        user = self.request.user
         honors = []
-        if student:
-            honors = Honor.objects.filter(user=student).order_by('-awarded_at')
+        if user.is_authenticated:
+            honors = Honor.objects.filter(user=user).order_by('-awarded_at')
         context.update({
-            'student': student,
+            'student': user if user.is_authenticated else None,
             'honors': honors,
         })
         return context
@@ -74,6 +72,15 @@ class AdminView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
+
+        # 权限检查：只有管理老师和学院领导可以访问
+        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+            context['no_permission'] = True
+            context['honors'] = []
+            context['category_choices'] = CATEGORY_CHOICES
+            return context
+
         honors = Honor.objects.select_related('user').all().order_by('-awarded_at')
         context.update({
             'honors': honors,
@@ -85,6 +92,13 @@ class AdminView(TemplateView):
 class AddHonorView(View):
     """录入荣誉"""
     def post(self, request):
+        user = request.user
+
+        # 权限检查
+        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+            messages.error(request, '您没有权限执行此操作。')
+            return redirect('profile:select')
+
         student_id = request.POST.get('student_id', '').strip()
         title = request.POST.get('title', '').strip()
         category = request.POST.get('category', 'other').strip()
@@ -132,6 +146,13 @@ class AddHonorView(View):
 class DeleteHonorView(View):
     """删除荣誉"""
     def post(self, request, pk):
+        user = request.user
+
+        # 权限检查
+        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+            messages.error(request, '您没有权限执行此操作。')
+            return redirect('profile:select')
+
         honor = get_object_or_404(Honor, pk=pk)
         honor_title = honor.title
         honor.delete()
@@ -139,36 +160,19 @@ class DeleteHonorView(View):
         return redirect('profile:admin')
 
 
-class SetStudentView(View):
-    """设置当前学生（模拟登录，后续替换）"""
-    def post(self, request):
-        student_id = request.POST.get('student_id', '').strip()
-        if not student_id:
-            messages.error(request, '请输入学号。')
-            return redirect('profile:select')
-
-        student = User.objects.filter(student_id=student_id, role=User.ROLE_STUDENT).first()
-        if not student:
-            messages.error(request, f'未找到学号为 {student_id} 的学生。')
-            return redirect('profile:select')
-
-        request.session['current_student_id'] = student_id
-        return redirect('profile:student')
-
-
 @router.get('/overview')
 def api_overview(request):
-    student = _get_current_student(request)
+    user = request.user
     honors = []
-    if student:
-        honors = Honor.objects.filter(user=student).order_by('-awarded_at')
+    if user.is_authenticated:
+        honors = Honor.objects.filter(user=user).order_by('-awarded_at')
 
     return success(data={
         'student': {
-            'id': student.id,
-            'name': student.real_name or student.username,
-            'student_id': student.student_id,
-        } if student else None,
+            'id': user.id,
+            'name': user.real_name or user.username,
+            'student_id': user.student_id,
+        } if user.is_authenticated else None,
         'honors': [_serialize_honor(h) for h in honors],
         'category_choices': CATEGORY_CHOICES,
     })
@@ -176,6 +180,10 @@ def api_overview(request):
 
 @router.get('/all')
 def api_all_honors(request):
+    user = request.user
+    if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        return error(msg='您没有权限执行此操作。', code=403)
+
     honors = Honor.objects.select_related('user').all().order_by('-awarded_at')
     return success(data={
         'honors': [_serialize_honor(h) for h in honors],
@@ -185,6 +193,10 @@ def api_all_honors(request):
 
 @router.post('/honor')
 def api_create_honor(request, payload: dict):
+    user = request.user
+    if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        return error(msg='您没有权限执行此操作。', code=403)
+
     student_id = payload.get('student_id', '').strip()
     title = payload.get('title', '').strip()
     category = payload.get('category', 'other')
@@ -214,6 +226,10 @@ def api_create_honor(request, payload: dict):
 
 @router.delete('/honor/{pk}')
 def api_delete_honor(request, pk: int):
+    user = request.user
+    if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        return error(msg='您没有权限执行此操作。', code=403)
+
     honor = get_object_or_404(Honor, pk=pk)
     honor_title = honor.title
     honor.delete()

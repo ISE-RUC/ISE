@@ -11,6 +11,7 @@ from ninja.security import django_auth
 
 from apps.users.forms import LoginForm, StudentRegisterForm
 from apps.users.models import User
+from apps.workflow.models import WorkflowInstance, WorkflowStepRecord
 from utils.response import error, success
 
 router = Router()
@@ -148,11 +149,48 @@ class HomeView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
+
+        # 获取待办流程
+        todos = []
+        if user.role in (User.ROLE_ADMIN, User.ROLE_LEADER):
+            # 管理端：需要审批的流程（状态为进行中）
+            pending_records = WorkflowStepRecord.objects.filter(
+                status='pending',
+                instance__status=WorkflowInstance.STATUS_IN_PROGRESS
+            ).select_related('instance', 'step', 'instance__user').order_by('instance__deadline')
+
+            for record in pending_records:
+                todos.append({
+                    'id': record.instance.id,
+                    'title': record.instance.title,
+                    'step_name': record.step.name,
+                    'user_name': record.instance.user.real_name or record.instance.user.username,
+                    'deadline': record.instance.deadline,
+                    'url': f'/workflow/admin/{record.instance.id}/',
+                })
+        else:
+            # 学生端：自己发起的进行中流程
+            instances = WorkflowInstance.objects.filter(
+                user=user,
+                status=WorkflowInstance.STATUS_IN_PROGRESS
+            ).select_related('current_step').order_by('deadline')
+
+            for instance in instances:
+                todos.append({
+                    'id': instance.id,
+                    'title': instance.title,
+                    'step_name': instance.current_step.name if instance.current_step else '',
+                    'deadline': instance.deadline,
+                    'url': f'/workflow/student/{instance.id}/',
+                })
+
         context.update(
             {
                 "role_name": user.get_role_display(),
                 "is_admin_or_above": user.is_admin_or_above(),
                 "is_cadre_or_above": user.is_cadre_or_above(),
+                "todos": todos,
+                "todo_count": len(todos),
             }
         )
         return context
