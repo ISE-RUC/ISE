@@ -12,6 +12,7 @@ from ninja.security import django_auth
 from apps.users.forms import LoginForm, StudentRegisterForm
 from apps.users.models import User
 from apps.workflow.models import WorkflowInstance, WorkflowStepRecord
+from apps.notification.views import get_home_notification_summary
 from utils.response import error, success
 
 router = Router()
@@ -184,6 +185,7 @@ class HomeView(LoginRequiredMixin, TemplateView):
                     'url': f'/workflow/student/{instance.id}/',
                 })
 
+        context.update(get_home_notification_summary(self.request))
         context.update(
             {
                 "role_name": user.get_role_display(),
