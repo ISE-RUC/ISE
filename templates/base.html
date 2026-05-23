@@ -18,7 +18,16 @@
                 </div>
             </div>
             <div class="top-actions">
-                <button class="btn">演示用户（学生）</button>
+                {% if user.is_authenticated %}
+                <span style="color: var(--muted); margin-right: 0.75rem;">{{ user.real_name|default:user.username }}</span>
+                <form method="post" action="{% url 'users:logout' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn">退出登录</button>
+                </form>
+                {% else %}
+                <a href="{% url 'users:login' %}" class="btn">登录</a>
+                <a href="{% url 'users:register' %}" class="btn btn-primary">注册</a>
+                {% endif %}
             </div>
         </div>
     </header>
