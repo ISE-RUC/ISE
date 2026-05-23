@@ -37,8 +37,11 @@ def protected(request):
 # from apps.users.api import router as users_router
 # api.add_router("/users/", users_router)
 from apps.qa.views import router as qa_router
+from apps.profile.views import router as profile_router
 
 api.add_router("/qa/", qa_router, tags=["问答系统"])
 
 api.add_router("/certificate/", certificate_router, tags=["电子证明与审批"])
+
+api.add_router("/profile/", profile_router, tags=["荣誉画像"])
 

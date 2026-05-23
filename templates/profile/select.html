@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}荣誉画像{% endblock %}
+{% block content %}
+<section style="max-width:800px;margin:0 auto;padding:2rem;">
+    <div class="card">
+        <div class="hero-head">
+            <div>
+                <h1 class="hero-title">荣誉画像</h1>
+                <p class="hero-desc">请选择您要进入的端口</p>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:2rem;">
+            <div class="action-item" style="cursor:pointer;text-align:center;padding:2rem;" onclick="document.getElementById('student-form').style.display='block'">
+                <div class="icon-wrap" style="font-size:3rem;margin-bottom:1rem;">🎓</div>
+                <h3>学生端</h3>
+                <p>查看个人荣誉记录</p>
+            </div>
+            <a href="{% url 'profile:admin' %}" class="action-item" style="text-align:center;padding:2rem;text-decoration:none;">
+                <div class="icon-wrap" style="font-size:3rem;margin-bottom:1rem;">📝</div>
+                <h3>管理端</h3>
+                <p>录入和管理学生荣誉</p>
+            </a>
+        </div>
+
+        <div id="student-form" style="display:none;margin-top:2rem;padding:1.5rem;background:#f8fafc;border-radius:16px;">
+            <h3 style="margin-bottom:1rem;">请输入学号进入学生端</h3>
+            <form method="post" action="{% url 'profile:set_student' %}">
+                {% csrf_token %}
+                <div style="display:flex;gap:12px;">
+                    <input type="text" name="student_id" placeholder="请输入学号" required
+                        style="flex:1;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
+                    <button type="submit" class="btn btn-primary">进入</button>
+                </div>
+            </form>
+        </div>
+
+        <div style="margin-top:2rem;text-align:center;">
+            <a href="{% url 'users:home' %}" class="btn">返回首页</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

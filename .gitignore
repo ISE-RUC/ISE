@@ -223,3 +223,5 @@ prompts_example.py
 uv.lock
 
 .python-version
+
+.config
