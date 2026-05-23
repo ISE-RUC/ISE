@@ -67,14 +67,32 @@
     <div>
         <div class="card" style="margin-bottom:24px">
             <div class="card-head">
-                <h2>未读通知</h2>
-                <span class="pill pill-primary">精准推送</span>
+                <h2>????</h2>
+                <span class="pill pill-primary">{{ home_unread_count }} ???</span>
             </div>
             <div class="notice-list">
-                <div class="notice-item">【就业】2026届互联网企业春招信息汇总已发布</div>
-                <div class="notice-item">【党团】积极分子思想汇报提交截止倒计时 3 天</div>
-                <div class="notice-item">【通知】学生证明模板已更新，请按新模板申请</div>
+                {% for item in home_notifications %}
+                <a class="notice-item notice-link-item" href="{% url 'notification:index' %}?status=unread">
+                    <div>
+                        <strong>{{ item.title }}</strong>
+                        <p>{{ item.content|truncatechars:54 }}</p>
+                    </div>
+                    <span>{{ item.created_at|date:"m-d H:i" }}</span>
+                </a>
+                {% empty %}
+                <div class="notice-item">?????????</div>
+                {% endfor %}
             </div>
+            {% if home_unread_count > 3 %}
+            <div class="notice-more">
+                <a href="{% url 'notification:index' %}?status=unread">???? {{ home_unread_count }} ?????</a>
+            </div>
+            {% endif %}
+            {% if can_publish_notifications %}
+            <div style="margin-top:14px;">
+                <a href="{% url 'notification:index' %}" class="btn btn-primary">??/????</a>
+            </div>
+            {% endif %}
         </div>
 
         <div class="card">

@@ -1,4 +1,4 @@
-# ISE Platform API 调用指南
+﻿# ISE Platform API 调用指南
 
 ## 概述
 
@@ -449,6 +449,37 @@ response = requests.post(
 )
 result = response.json()
 ```
+
+## 通知中心 API
+
+通知中心已接入统一 API 路由，路径前缀为 `/api/notifications/`，响应格式仍为 `code`、`msg`、`data`。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/notifications/` | 查询当前用户可见通知，支持 `status=all/unread/read` 和 `q` 关键词 |
+| GET | `/api/notifications/{id}` | 查询单条通知详情 |
+| POST | `/api/notifications/` | 发布通知，仅学院领导和管理老师可用 |
+| POST | `/api/notifications/{id}/read` | 标记单条通知为已读 |
+| POST | `/api/notifications/read-all` | 标记当前用户可见通知为已读 |
+
+发布通知请求示例：
+
+```json
+{
+  "title": "学生证明模板已更新",
+  "content": "请按新版模板提交证明申请。",
+  "target_role": 4,
+  "target_grade": "2026",
+  "target_major": "信息系统工程"
+}
+```
+
+权限约束：
+
+- 学院领导、管理老师可以发布通知。
+- 班团骨干、普通学生、未登录用户不能发布通知。
+- 所有用户只能查看符合其角色、年级、专业条件的通知。
+- 发布通知会写入 `AuditLog`，用于后续追踪和审计。
 
 ## 版本控制
 

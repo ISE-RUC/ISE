@@ -1,325 +1,98 @@
 {% extends "base.html" %}
-{% block title %}证明开具{% endblock %}
+{% load static %}
+
+{% block title %}我的证明申请{% endblock %}
+
 {% block content %}
-<section class="grid-main">
+<link rel="stylesheet" href="{% static 'certificate/certificate.css' %}">
+
+<section class="grid-main certificate-list-page">
     <div class="card">
-        <div class="hero-head">
+        <div class="hero-head certificate-hero-head">
             <div>
-                <h1 class="hero-title">电子证明生成与审批</h1>
-                <p class="hero-desc">
-                    面向学生提供证明申请、审批流转、PDF 生成与下载能力；页面延续首页的信息卡片、待办列表与流程化表达。
-                </p>
+                <h1 class="hero-title">我的证明申请</h1>
+                <p class="hero-desc">{{ page_intro }}</p>
             </div>
-            <div class="role-tag">
-                <div class="small">当前演示角色</div>
-                <div class="role">
-                    {% if current_user.real_name %}
-                    {{ current_user.real_name }}
-                    {% else %}
-                    {{ current_user.username }}
-                    {% endif %}
+            <div class="certificate-page-actions">
+                <div class="role-tag">
+                    <div class="small">当前用户</div>
+                    <div class="role">{{ student_profile.name }}</div>
                 </div>
+                <a href="{% url 'certificate:create' %}" class="btn btn-primary">新建申请</a>
             </div>
         </div>
 
-        <div class="search-box">
-            <div class="section-label">演示身份切换</div>
-            <div class="search-row cert-switch-row">
-                <a href="{% url 'certificate:demo_switch' 'student' %}" class="btn btn-primary">学生视角</a>
-                <a href="{% url 'certificate:demo_switch' 'cadre' %}" class="btn">初审老师</a>
-                <a href="{% url 'certificate:demo_switch' 'admin' %}" class="btn">终审老师</a>
-            </div>
-        </div>
-
-        {% if is_student %}
-        <div class="action-grid cert-summary-grid">
-            <div class="action-item" style="cursor:default;">
-                <div class="icon-wrap">📋</div>
-                <h3>办理说明</h3>
-                <p>提交申请后进入"待初审"，初审通过后流转到"待终审"，终审通过后系统自动生成 PDF。</p>
-            </div>
-            <div class="action-item" style="cursor:default;">
-                <div class="icon-wrap">📊</div>
-                <h3>当前摘要</h3>
-                <p>我的申请 {{ my_requests|length }} 条，待初审 {{ first_review_queue|length }} 条，待终审 {{ final_review_queue|length }} 条。</p>
-            </div>
-        </div>
-
-        <div class="cert-apply-panel">
-            <div class="card-head" style="margin-bottom:20px;">
-                <h2>发起申请</h2>
-                <span class="pill pill-primary">学生入口</span>
-            </div>
-            <form method="post" action="{% url 'certificate:apply' %}">
-                {% csrf_token %}
-                <div class="cert-apply-grid">
-                    <div>
-                        <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">证明类型</label>
-                        <select name="cert_type" required style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
-                            <option value="">请选择</option>
-                            {% for item in cert_type_choices %}
-                            <option value="{{ item }}">{{ item }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">当前申请人</label>
-                        <div style="min-height:48px;border:1px solid var(--line);border-radius:16px;padding:12px 16px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;">
-                            <span style="font-weight:600;">
-                                {% if current_user.real_name %}
-                                {{ current_user.real_name }}
-                                {% else %}
-                                {{ current_user.username }}
+        <div class="certificate-table-wrap">
+            <table class="certificate-table">
+                <thead>
+                    <tr>
+                        <th>申请单号</th>
+                        <th>证明名称</th>
+                        <th>当前状态</th>
+                        <th>申请日期</th>
+                        <th>最近更新</th>
+                        <th>文件状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in request_rows %}
+                    <tr class="certificate-row" data-href="{% url 'certificate:detail' item.id %}">
+                        <td>{{ item.reference }}</td>
+                        <td>{{ item.cert_type }}</td>
+                        <td><span class="pill {{ item.status_class }}">{{ item.status }}</span></td>
+                        <td>{{ item.created_at }}</td>
+                        <td>{{ item.updated_at }}</td>
+                        <td>{{ item.pdf_state }}</td>
+                        <td>
+                            <div class="certificate-row-actions">
+                                <a href="{% url 'certificate:detail' item.id %}" class="btn btn-primary">查看详情</a>
+                                {% if item.can_download %}
+                                <a href="{% url 'certificate:download' item.id %}" class="btn">下载</a>
                                 {% endif %}
-                            </span>
-                            <span style="color:var(--muted);font-size:13px;">学号：{{ current_user.student_id|default:"未登记" }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">申请用途</label>
-                    <textarea name="purpose" rows="5" placeholder="例如：用于奖学金材料提交" required style="width:100%;border:1px solid var(--line);border-radius:16px;padding:12px 16px;background:#fff;font-family:inherit;"></textarea>
-                </div>
-                <div class="cert-button-row">
-                    <button type="submit" class="btn btn-primary">提交证明申请</button>
-                    <a href="{% url 'users:home' %}" class="btn">返回首页</a>
-                </div>
-            </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="notice-item certificate-empty-state">
+                                当前还没有申请记录，点击右上角“新建申请”开始办理。
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% else %}
-        <div class="action-grid">
-            <div class="action-item" style="cursor:default;">
-                <div class="icon-wrap">📋</div>
-                <h3>办理说明</h3>
-                <p>提交申请后进入"待初审"，初审通过后流转到"待终审"，终审通过后系统自动生成 PDF。</p>
-            </div>
-            <div class="action-item" style="cursor:default;">
-                <div class="icon-wrap">📊</div>
-                <h3>当前摘要</h3>
-                <p>我的申请 {{ my_requests|length }} 条，待初审 {{ first_review_queue|length }} 条，待终审 {{ final_review_queue|length }} 条。</p>
-            </div>
-            <div class="action-item" style="cursor:default;">
-                <div class="icon-wrap">👨‍🏫</div>
-                <h3>老师视角</h3>
-                <p>当前是老师视角，可处理右侧或下方待办，或切回学生视角复核流程。</p>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
     <div>
         <div class="card" style="margin-bottom:24px;">
             <div class="card-head">
-                <h2>我的申请</h2>
-                <span class="pill pill-primary">{{ my_requests|length }} 条记录</span>
+                <h2>申请说明</h2>
+                <span class="pill pill-primary">学生端</span>
             </div>
             <div class="notice-list">
-                {% for item in my_requests|slice:":3" %}
-                <div class="notice-item">
-                    【{{ item.cert_type }}】{{ item.get_status_display }}{% if item.generated_pdf %}，可下载 PDF{% else %}，等待后续处理{% endif %}
-                </div>
-                {% empty %}
-                <div class="notice-item">暂无申请记录，可从左侧直接提交首条证明申请。</div>
-                {% endfor %}
+                <div class="notice-item">点击“新建申请”后再进入填写流程，列表页不直接展示申请状态细节。</div>
+                <div class="notice-item">点击表格中的具体申请即可跳转到该申请详情页，查看状态、处理记录和下载入口。</div>
+                <div class="notice-item">申请已签发时可下载文件；观察期内可撤回；待补充材料或退回修改时可继续提交。</div>
             </div>
         </div>
 
         <div class="card">
             <div class="card-head">
-                <h2>流程提示</h2>
-                <span style="font-size:14px;color:var(--muted);">当前角色：{{ current_role_key }}</span>
+                <h2>我的信息</h2>
+                <span class="pill pill-success">已绑定</span>
             </div>
             <div class="todo-list">
-                <div class="todo-item"><span class="dot"></span><span>学生提交后进入待初审队列</span></div>
-                <div class="todo-item"><span class="dot"></span><span>初审老师通过后进入待终审队列</span></div>
-                <div class="todo-item"><span class="dot"></span><span>终审通过后即可下载 PDF</span></div>
+                <div class="todo-item"><span class="dot"></span><span>姓名：{{ student_profile.name }}</span></div>
+                <div class="todo-item"><span class="dot"></span><span>学号：{{ student_profile.student_id }}</span></div>
+                <div class="todo-item"><span class="dot"></span><span>专业：{{ student_profile.major }}</span></div>
             </div>
         </div>
     </div>
 </section>
 
-<div class="card" style="margin-top:24px;">
-    <div class="card-head">
-        <h2>申请明细</h2>
-        <span class="pill pill-primary">状态追踪</span>
-    </div>
-    <div style="overflow:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-            <thead>
-                <tr>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">类型</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">用途</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">状态</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">审批信息</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in my_requests %}
-                <tr>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ item.cert_type }}</td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ item.purpose }}</td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
-                        <span class="status-badge status-{{ item.status }}">{{ item.get_status_display }}</span>
-                    </td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
-                        初审：
-                        {% if item.first_reviewer %}
-                        {% if item.first_reviewer.real_name %}
-                        {{ item.first_reviewer.real_name }}
-                        {% else %}
-                        {{ item.first_reviewer.username }}
-                        {% endif %}
-                        {% else %}
-                        -
-                        {% endif %}
-                        <br>
-                        终审：
-                        {% if item.final_reviewer %}
-                        {% if item.final_reviewer.real_name %}
-                        {{ item.final_reviewer.real_name }}
-                        {% else %}
-                        {{ item.final_reviewer.username }}
-                        {% endif %}
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
-                        {% if item.generated_pdf %}
-                        <a href="{% url 'certificate:download' item.id %}" class="btn btn-primary" style="padding:8px 12px;min-width:auto;">下载 PDF</a>
-                        {% else %}
-                        <span style="color:var(--muted);font-size:13px;">待生成</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="padding:14px 12px;text-align:center;color:var(--muted);">暂无申请记录</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-{% if can_first_review %}
-<div class="card" style="margin-top:24px;">
-    <div class="card-head">
-        <h2>初审待办</h2>
-        <span class="pill pill-warning">班团骨干 / 班主任</span>
-    </div>
-    <div style="overflow:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-            <thead>
-                <tr>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">申请人</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">证明类型</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">用途</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in first_review_queue %}
-                <tr>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
-                        {% if item.applicant.real_name %}
-                        {{ item.applicant.real_name }}
-                        {% else %}
-                        {{ item.applicant.username }}
-                        {% endif %}
-                    </td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ item.cert_type }}</td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ item.purpose }}</td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
-                        <div style="display:flex;gap:8px;">
-                            <form method="post" action="{% url 'certificate:review' item.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="approve">
-                                <button type="submit" class="btn btn-primary" style="padding:8px 12px;min-width:auto;">审核通过</button>
-                            </form>
-                            <form method="post" action="{% url 'certificate:review' item.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="reject">
-                                <button type="submit" class="btn" style="padding:8px 12px;min-width:auto;">驳回</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" style="padding:14px 12px;text-align:center;color:var(--muted);">当前没有待初审申请</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-
-{% if can_final_review %}
-<div class="card" style="margin-top:24px;">
-    <div class="card-head">
-        <h2>终审待办</h2>
-        <span class="pill pill-success">管理老师 / 学院领导</span>
-    </div>
-    <div style="overflow:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-            <thead>
-                <tr>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">申请人</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">证明类型</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">用途</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">初审人</th>
-                    <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in final_review_queue %}
-                <tr>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
-                        {% if item.applicant.real_name %}
-                        {{ item.applicant.real_name }}
-                        {% else %}
-                        {{ item.applicant.username }}
-                        {% endif %}
-                    </td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ item.cert_type }}</td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ item.purpose }}</td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
-                        {% if item.first_reviewer %}
-                        {% if item.first_reviewer.real_name %}
-                        {{ item.first_reviewer.real_name }}
-                        {% else %}
-                        {{ item.first_reviewer.username }}
-                        {% endif %}
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-                    <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
-                        <div style="display:flex;gap:8px;">
-                            <form method="post" action="{% url 'certificate:review' item.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="approve">
-                                <button type="submit" class="btn btn-primary" style="padding:8px 12px;min-width:auto;">终审通过</button>
-                            </form>
-                            <form method="post" action="{% url 'certificate:review' item.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="reject">
-                                <button type="submit" class="btn" style="padding:8px 12px;min-width:auto;">驳回</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="padding:14px 12px;text-align:center;color:var(--muted);">当前没有待终审申请</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
+<script src="{% static 'certificate/certificate.js' %}"></script>
 {% endblock %}

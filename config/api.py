@@ -6,7 +6,8 @@ API 路由配置
 from ninja import NinjaAPI
 from ninja.security import django_auth
 
-from apps.certificate.views import router as certificate_router
+from apps.certificate.api import router as certificate_router
+from apps.notification.api import router as notification_router
 from apps.qa.views import router as qa_router
 from apps.users.views import router as users_router
 

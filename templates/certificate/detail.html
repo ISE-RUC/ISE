@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}申请详情{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'certificate/certificate.css' %}">
+
+<section class="grid-main certificate-detail-page">
+    <div class="card">
+        <div class="hero-head certificate-hero-head">
+            <div>
+                <h1 class="hero-title">申请详情</h1>
+                <p class="hero-desc">{{ active_application.summary }}</p>
+            </div>
+            <div class="certificate-page-actions">
+                <div class="role-tag">
+                    <div class="small">当前状态</div>
+                    <div class="role">{{ active_application.status }}</div>
+                </div>
+                <a href="{% url 'certificate:index' %}" class="btn">返回申请列表</a>
+            </div>
+        </div>
+
+        <div class="search-box certificate-overview-box">
+            <div class="section-label">申请概况</div>
+            <div class="certificate-overview-grid">
+                <div class="notice-item">
+                    <span class="certificate-overview-label">申请单号</span>
+                    <strong>{{ active_application.reference }}</strong>
+                </div>
+                <div class="notice-item">
+                    <span class="certificate-overview-label">证明名称</span>
+                    <strong id="statusCertificateName">{{ active_application.certificate_name }}</strong>
+                </div>
+                <div class="notice-item">
+                    <span class="certificate-overview-label">申请时间</span>
+                    <strong>{{ active_application.created_at }}</strong>
+                </div>
+                <div class="notice-item">
+                    <span class="certificate-overview-label">最近更新</span>
+                    <strong>{{ active_application.updated_at }}</strong>
+                </div>
+                <div class="notice-item">
+                    <span class="certificate-overview-label">文件状态</span>
+                    <strong>{{ active_application.pdf_state }}</strong>
+                </div>
+                <div class="notice-item">
+                    <span class="certificate-overview-label">观察期信息</span>
+                    <strong>{{ active_application.window }}</strong>
+                </div>
+            </div>
+        </div>
+
+        {% if active_application.can_resubmit %}
+        <form class="certificate-form" method="post" action="{{ resubmit_url }}" data-api-form data-api-url="/api/certificates/{{ request_obj.id }}/resubmit">
+            {% csrf_token %}
+            <div class="certificate-section">
+                <div class="card-head">
+                    <h2>修改并重新提交</h2>
+                    <span class="pill pill-warning">仅在待补充/退回修改/已撤回时开放</span>
+                </div>
+                <div class="action-grid certificate-type-grid">
+                    {% for item in certificate_types %}
+                    <label class="certificate-type-option">
+                        <input
+                            type="radio"
+                            name="certificate_type"
+                            value="{{ item.id }}"
+                            {% if selected_certificate_type == item.id %}checked{% endif %}
+                            data-preview-title="{{ item.preview_title }}"
+                            data-certificate-name="{{ item.name }}"
+                        >
+                        <span class="action-item certificate-type-card">
+                            <div class="icon-wrap">{{ item.icon }}</div>
+                            <h3>{{ item.name }}</h3>
+                            <p>{{ item.description }}</p>
+                            <span class="link">{{ item.tag }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="certificate-section">
+                <div class="certificate-form-grid">
+                    <div class="notice-item">
+                        <label class="certificate-field-label" for="purpose">用途说明</label>
+                        <textarea
+                            id="purpose"
+                            name="purpose"
+                            class="certificate-textarea"
+                            rows="4"
+                        >{{ form_values.purpose }}</textarea>
+                    </div>
+                    <div class="notice-item">
+                        <label class="certificate-field-label" for="attachment_note">附件说明</label>
+                        <textarea
+                            id="attachment_note"
+                            name="attachment_note"
+                            class="certificate-textarea"
+                            rows="4"
+                        >{{ form_values.attachment_note }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="certificate-submit-row">
+                <button class="btn btn-primary" type="submit">重新提交申请</button>
+                <a class="btn" href="{{ preview_url }}" target="_blank" rel="noopener">查看 PDF 预览</a>
+            </div>
+        </form>
+        {% endif %}
+
+        {% if active_application.can_preview or active_application.can_download or active_application.can_revoke %}
+        <div class="certificate-section">
+            <div class="card-head">
+                <h2>当前可执行操作</h2>
+                <span class="pill {{ active_application.status_class }}">{{ active_application.status }}</span>
+            </div>
+            <div class="certificate-submit-row">
+                {% if active_application.can_preview and not active_application.can_download %}
+                <a class="btn btn-primary" href="{{ preview_url }}" target="_blank" rel="noopener">查看 PDF 预览稿</a>
+                {% endif %}
+                {% if active_application.can_download %}
+                <a href="{{ download_url }}" class="btn btn-primary">下载正式文件</a>
+                {% endif %}
+                {% if active_application.can_revoke %}
+                <form method="post" action="{{ revoke_url }}" data-api-action data-api-url="/api/certificates/{{ request_obj.id }}/revoke">
+                    {% csrf_token %}
+                    <button class="btn" type="submit">撤回申请</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="certificate-side-column">
+        {% if rejection_note.exists %}
+        <div class="card" style="margin-bottom:24px;">
+            <div class="card-head">
+                <h2>处理意见</h2>
+                <span class="pill pill-warning">需关注</span>
+            </div>
+            <div class="notice-item">
+                <div class="section-label">最近反馈时间</div>
+                <strong>{{ rejection_note.time }}</strong>
+                <p class="certificate-side-copy">{{ rejection_note.content }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card" style="margin-bottom:24px;">
+            <div class="card-head">
+                <h2>材料状态</h2>
+                <span class="pill pill-primary">提交依据</span>
+            </div>
+            <div class="notice-list certificate-material-list">
+                {% for item in materials %}
+                <div class="notice-item certificate-material-item">
+                    <div>
+                        <strong>{{ item.name }}</strong>
+                        <p>{{ item.detail }}</p>
+                    </div>
+                    <span class="pill {{ item.pill_class }}">{{ item.status }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:24px;">
+            <div class="card-head">
+                <h2>流程时间轴</h2>
+                <span class="pill pill-primary">闭环追踪</span>
+            </div>
+            <div class="certificate-timeline">
+                {% for item in timeline_steps %}
+                <div class="certificate-timeline-item is-{{ item.state }}">
+                    <span class="certificate-timeline-dot"></span>
+                    <div>
+                        <strong>{{ item.title }}</strong>
+                        <p>{{ item.detail }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h2>处理记录</h2>
+                <span class="pill pill-success">留痕可追溯</span>
+            </div>
+            <div class="todo-list certificate-history-list">
+                {% for item in application_history %}
+                <div class="todo-item certificate-history-item">
+                    <span class="dot"></span>
+                    <div>
+                        <strong>{{ item.title }}</strong>
+                        <p>{{ item.time }}</p>
+                        <p>{{ item.detail }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="certificate-overlay" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+    <div class="certificate-modal certificate-modal-wide">
+        <div class="card-head">
+            <h2 id="previewModalTitle">证明预览</h2>
+            <div class="certificate-preview-toolbar">
+                <span class="pill pill-primary" id="previewTypePill">
+                    {% for item in certificate_types %}{% if selected_certificate_type == item.id %}{{ item.preview_title }}{% endif %}{% endfor %}
+                </span>
+                <button class="modal-close" type="button" data-close-modal="previewModal" aria-label="关闭预览弹窗">×</button>
+            </div>
+        </div>
+        <div class="card certificate-preview-paper">
+            <div class="certificate-preview-paper__head">
+                <div>
+                    <div class="section-label">学院学生事务服务中心</div>
+                    <h3 id="previewCertificateTitle">
+                        {% for item in certificate_types %}{% if selected_certificate_type == item.id %}{{ item.preview_title }}{% endif %}{% endfor %}
+                    </h3>
+                </div>
+                <span class="pill pill-warning">预览稿</span>
+            </div>
+            <div class="certificate-preview-paper__body">
+                <p>兹证明：</p>
+                <p>
+                    <strong id="previewName">{{ student_profile.name }}</strong>，
+                    学号 <strong id="previewStudentId">{{ student_profile.student_id }}</strong>，
+                    性别 <strong id="previewGender">{{ student_profile.gender }}</strong>，
+                    专业为 <strong id="previewMajor">{{ student_profile.major }}</strong>。
+                </p>
+                <p id="previewDescription">该生当前申请开具证明，请以正式签发文件为准。</p>
+                <p>重新提交后系统将再次进行材料校验，并依据当前状态继续流转。</p>
+            </div>
+            <div class="certificate-preview-paper__foot">
+                <span>学院学生事务服务中心</span>
+                <span>日期：2026-05-11</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'certificate/certificate.js' %}"></script>
+{% endblock %}

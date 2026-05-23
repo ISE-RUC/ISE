@@ -65,7 +65,7 @@ class User(AbstractUser):
         return self.role <= self.ROLE_ADMIN
 
     def can_publish_notice(self):
-        return self.role <= self.ROLE_CADRE
+        return self.role <= self.ROLE_ADMIN
 
     def can_view_sensitive(self):
         return self.role <= self.ROLE_ADMIN
