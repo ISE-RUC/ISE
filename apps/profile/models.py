@@ -4,9 +4,20 @@ from apps.users.models import User
 
 class Honor(models.Model):
     """荣誉记录（国奖、校优等）。"""
+    CATEGORY_CHOICES = [
+        ('academic', '学术竞赛'),
+        ('sports', '文体活动'),
+        ('social', '社会实践'),
+        ('volunteer', '志愿服务'),
+        ('party', '党团活动'),
+        ('other', '其他'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='honors')
     title = models.CharField('荣誉名称', max_length=200)
+    category = models.CharField('奖项类别', max_length=50, choices=CATEGORY_CHOICES, default='other')
     level = models.CharField('级别', max_length=50)  # 国家级/校级/院级
+    description = models.TextField('奖项描述', blank=True, default='')
     awarded_at = models.DateField('获奖日期')
     attachment = models.FileField('证明材料', upload_to='profile/honors/', null=True, blank=True)
 

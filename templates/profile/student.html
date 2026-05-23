@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}荣誉画像 - 学生端{% endblock %}
+{% block content %}
+<section style="max-width:1000px;margin:0 auto;padding:2rem;">
+    <div class="card">
+        <div class="hero-head">
+            <div>
+                <h1 class="hero-title">我的荣誉记录</h1>
+                <p class="hero-desc">
+                    {% if student %}
+                    {{ student.real_name|default:student.username }}
+                    {% if student.student_id %}（{{ student.student_id }}）{% endif %}
+                    {% else %}
+                    请先登录
+                    {% endif %}
+                </p>
+            </div>
+            <div class="role-tag">
+                <div class="small">当前端口</div>
+                <div class="role">学生端</div>
+            </div>
+        </div>
+
+        <div class="action-grid cert-summary-grid">
+            <div class="action-item" style="cursor:default;">
+                <div class="icon-wrap">🏅</div>
+                <h3>我的荣誉</h3>
+                <p>共获得 {{ honors|length }} 项荣誉</p>
+            </div>
+            <div class="action-item" style="cursor:default;">
+                <div class="icon-wrap">📊</div>
+                <h3>成长轨迹</h3>
+                <p>记录每一份努力与成就</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>荣誉列表</h2>
+            <span class="pill pill-primary">{{ honors|length }} 条记录</span>
+        </div>
+        <div style="overflow:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                <thead>
+                    <tr>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">奖项名称</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">类别</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">级别</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">描述</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">获奖日期</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">证明材料</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for honor in honors %}
+                    <tr>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);font-weight:600;">{{ honor.title }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            <span class="pill pill-primary">{{ honor.get_category_display }}</span>
+                        </td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ honor.level }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);color:var(--muted);">
+                            {% if honor.description %}{{ honor.description|truncatewords:20 }}{% else %}暂无{% endif %}
+                        </td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ honor.awarded_at|date:"Y-m-d" }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            {% if honor.attachment %}
+                            <a href="{{ honor.attachment.url }}" target="_blank" class="btn btn-primary" style="padding:6px 12px;min-width:auto;font-size:13px;">查看证明</a>
+                            {% else %}
+                            <span style="color:var(--muted);font-size:13px;">暂无</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="padding:24px 12px;text-align:center;color:var(--muted);">
+                            暂无荣誉记录
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="margin-top:24px;text-align:center;">
+        <a href="{% url 'profile:select' %}" class="btn">返回选择</a>
+        <a href="{% url 'users:home' %}" class="btn" style="margin-left:12px;">返回首页</a>
+    </div>
+</section>
+{% endblock %}

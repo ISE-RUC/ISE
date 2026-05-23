@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'apps.certificate',
     'apps.notification',
     'apps.profile',
+    'apps.workflow',
 ]
 
 MIDDLEWARE = [

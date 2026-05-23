@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}我的流程 - 管理端{% endblock %}
+{% block content %}
+<section style="max-width:1200px;margin:0 auto;padding:2rem;">
+    {% if no_permission %}
+    <div class="card">
+        <div style="text-align:center;padding:3rem;">
+            <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+            <h2 style="margin-bottom:1rem;">您没有权限</h2>
+            <p style="color:var(--muted);margin-bottom:2rem;">只有管理老师和学院领导可以访问管理端</p>
+            <a href="{% url 'workflow:select' %}" class="btn">返回选择</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="hero-head">
+            <div>
+                <h1 class="hero-title">流程管理</h1>
+                <p class="hero-desc">管理流程模板和审批流程</p>
+            </div>
+            <div class="role-tag">
+                <div class="small">当前端口</div>
+                <div class="role">管理端</div>
+            </div>
+        </div>
+
+        <div class="action-grid cert-summary-grid">
+            <div class="action-item" style="cursor:default;">
+                <div class="icon-wrap">📝</div>
+                <h3>流程模板</h3>
+                <p>{{ templates|length }} 个模板</p>
+            </div>
+            <div class="action-item" style="cursor:default;">
+                <div class="icon-wrap">📊</div>
+                <h3>流程实例</h3>
+                <p>{{ instances|length }} 个流程</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>创建流程模板</h2>
+            <span class="pill pill-primary">管理入口</span>
+        </div>
+        <form method="post" action="{% url 'workflow:create_template' %}">
+            {% csrf_token %}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                <div>
+                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">流程名称 *</label>
+                    <input type="text" name="name" placeholder="请输入流程名称" required
+                        style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">流程描述</label>
+                    <input type="text" name="description" placeholder="请输入流程描述"
+                        style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">流程步骤（每行一个步骤）</label>
+                <textarea name="steps" rows="4" placeholder="例如：&#10;提交申请&#10;班主任审核&#10;学院审批"
+                    style="width:100%;border:1px solid var(--line);border-radius:16px;padding:12px 16px;background:#fff;font-family:inherit;"></textarea>
+            </div>
+            <div class="cert-button-row">
+                <button type="submit" class="btn btn-primary">创建模板</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>流程模板列表</h2>
+            <span class="pill pill-primary">{{ templates|length }} 个模板</span>
+        </div>
+        <div style="overflow:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                <thead>
+                    <tr>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">模板名称</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">描述</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">步骤数</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">创建时间</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in templates %}
+                    <tr>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);font-weight:600;">{{ template.name }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);color:var(--muted);">{{ template.description|default:"暂无" }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ template.steps.count }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ template.created_at|date:"Y-m-d H:i" }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            <form method="post" action="{% url 'workflow:delete_template' template.id %}" onsubmit="return confirm('确定删除该模板吗？');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn" style="padding:6px 12px;min-width:auto;font-size:13px;color:#ef4444;border-color:#fecaca;">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="padding:24px 12px;text-align:center;color:var(--muted);">
+                            暂无流程模板
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>流程实例列表</h2>
+            <span class="pill pill-primary">{{ instances|length }} 个流程</span>
+        </div>
+        <div style="overflow:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                <thead>
+                    <tr>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">流程标题</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">发起人</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">模板</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">状态</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">当前步骤</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for instance in instances %}
+                    <tr>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);font-weight:600;">{{ instance.title }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ instance.user.real_name|default:instance.user.username }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ instance.template.name }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            <span class="pill {% if instance.status == 'completed' %}pill-success{% elif instance.status == 'rejected' %}pill-warning{% else %}pill-primary{% endif %}">
+                                {{ instance.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            {% if instance.current_step %}{{ instance.current_step.name }}{% else %}-{% endif %}
+                        </td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            <div style="display:flex;gap:8px;">
+                                <a href="{% url 'workflow:admin_detail' instance.id %}" class="btn btn-primary" style="padding:6px 12px;min-width:auto;font-size:13px;">查看详情</a>
+                                <form method="post" action="{% url 'workflow:delete_instance' instance.id %}" onsubmit="return confirm('确定删除该流程吗？');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn" style="padding:6px 12px;min-width:auto;font-size:13px;color:#ef4444;border-color:#fecaca;">删除</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="padding:24px 12px;text-align:center;color:var(--muted);">
+                            暂无流程实例
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="margin-top:24px;text-align:center;">
+        <a href="{% url 'workflow:select' %}" class="btn">返回选择</a>
+        <a href="{% url 'users:home' %}" class="btn" style="margin-left:12px;">返回首页</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
