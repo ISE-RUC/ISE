@@ -4,13 +4,13 @@ from django.db import models
 
 class User(AbstractUser):
     """
-    Extended user model for the campus platform.
+    扩展用户模型。
 
-    Role levels:
-    1 = leader
-    2 = admin teacher
-    3 = cadre
-    4 = student
+    角色等级：
+    1 = 学院领导
+    2 = 管理老师
+    3 = 班团骨干
+    4 = 普通学生
     """
 
     ROLE_LEADER = 1
@@ -33,7 +33,7 @@ class User(AbstractUser):
     major = models.CharField("专业", max_length=100, blank=True)
     email = models.EmailField("邮箱", blank=True)
 
-    # Sensitive fields are still protected in the view layer.
+    # 敏感字段仍由视图层控制展示权限。
     id_number = models.CharField("身份证号", max_length=18, blank=True)
     hometown = models.CharField("生源地", max_length=100, blank=True)
     suspension_record = models.TextField("休学/延毕记录", blank=True)
@@ -72,7 +72,7 @@ class User(AbstractUser):
 
 
 class AuditLog(models.Model):
-    """Simple audit log for write operations."""
+    """记录写操作的审计日志。"""
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     action = models.CharField("操作", max_length=200)
