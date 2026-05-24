@@ -2,17 +2,22 @@
 {% block title %}党团事务管理端{% endblock %}
 {% block content %}
 <section class="card">
-    {% include "party/_page_nav.html" %}
-    <div class="card-head">
-        <h2>党团事务管理端</h2>
-        <span class="pill pill-primary">管理工作台</span>
+    <div class="party-hero">
+        <div class="party-hero-main">
+            <div class="party-eyebrow">党团模块 · 管理端</div>
+            <h1 class="hero-title party-hero-title">党团事务管理端</h1>
+            <p class="hero-desc">
+                这里集中查看流程统计、待审批任务、提醒状态与批量操作入口，便于老师把握党团事务办理整体情况。
+            </p>
+        </div>
+        <div class="party-hero-side">
+            <span class="pill pill-primary">管理工作台</span>
+            <a href="{% url 'party:index' %}" class="btn party-ghost-btn">返回党团模块入口</a>
+        </div>
     </div>
-    <div class="action-bar section-spaced">
-        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
-    </div>
-    <p class="hero-desc">这里集中查看流程统计、待审批任务、超期提醒和批量操作入口，便于老师把握党团事务办理整体状态。</p>
-    <div class="dashboard-summary section-spaced">
-        <div class="summary-item">
+
+    <div class="dashboard-summary party-summary-grid section-spaced">
+        <div class="summary-item summary-emphasis">
             <div class="summary-label">待审批任务</div>
             <div class="summary-value">{{ pending_task_count }}</div>
         </div>
@@ -29,30 +34,31 @@
             <div class="summary-value">{{ overdue_stage_count }}</div>
         </div>
     </div>
-    <div class="action-grid">
+
+    <div class="action-grid section-spaced">
         <a href="{% url 'party:party_admin:members' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
             <h3>成员列表</h3>
-            <p>按年级、专业、当前阶段筛选学生党团档案。</p>
+            <p>按年级、专业、当前阶段筛选学生党团档案，快速进入单个成员详情。</p>
             <div class="link">进入页面 →</div>
         </a>
         <a href="{% url 'party:party_admin:approvals' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
             <h3>审批工作台</h3>
-            <p>查看待审批任务，执行通过、驳回、撤回和批量处理。</p>
+            <p>集中查看待审批任务，执行通过、驳回、撤回和批量处理，减少审批往返。</p>
             <div class="link">进入页面 →</div>
         </a>
         <a href="{% url 'party:party_admin:reminders' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
             <h3>提醒概览</h3>
-            <p>集中查看待发送提醒、已发送提醒和逾期节点状态。</p>
+            <p>查看待发送提醒、已发送提醒与逾期节点状态，便于跟进当前进度。</p>
             <div class="link">进入页面 →</div>
         </a>
         <a href="{% url 'party:party_admin:rules' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
             <h3>流程规则</h3>
-            <p>维护节点定义、材料要求与审批角色配置。</p>
+            <p>维护节点定义、材料要求与审批角色配置，统一流程执行口径。</p>
             <div class="link">进入页面 →</div>
         </a>
         <a href="{% url 'party:party_admin:import_export' %}?return_to={{ current_page_url|urlencode }}" class="action-item">
             <h3>批量导入导出</h3>
-            <p>通过 Excel 批量导入学生流程数据，并导出当前流程状态。</p>
+            <p>通过 Excel 批量导入学生流程数据，并导出当前流程状态做线下核对。</p>
             <div class="link">进入页面 →</div>
         </a>
     </div>
