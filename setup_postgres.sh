@@ -3,11 +3,25 @@
 
 set -e
 
-DB_NAME="ise_db"
-DB_USER="ise_user"
-DB_PASSWORD="1@mAp0wErfulP@ssw0rd"
+# 从 .env 文件读取配置
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+else
+    echo "错误: 未找到 .env 文件"
+    echo "请先创建 .env 文件: cp .env.example .env"
+    exit 1
+fi
+
+# 验证必需的环境变量
+if [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+    echo "错误: .env 文件中缺少必需的配置项"
+    echo "需要: DB_NAME, DB_USER, DB_PASSWORD"
+    exit 1
+fi
 
 echo "正在创建 PostgreSQL 数据库和用户..."
+echo "数据库名: $DB_NAME"
+echo "用户名: $DB_USER"
 
 # 创建用户（如果不存在）
 sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename = '$DB_USER'" | grep -q 1 || \
