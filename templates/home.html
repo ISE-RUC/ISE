@@ -67,8 +67,8 @@
     <div>
         <div class="card" style="margin-bottom:24px">
             <div class="card-head">
-                <h2>????</h2>
-                <span class="pill pill-primary">{{ home_unread_count }} ???</span>
+                <h2>未读通知</h2>
+                <span class="pill pill-primary">{{ home_unread_count }} 条未读</span>
             </div>
             <div class="notice-list">
                 {% for item in home_notifications %}
@@ -80,17 +80,17 @@
                     <span>{{ item.created_at|date:"m-d H:i" }}</span>
                 </a>
                 {% empty %}
-                <div class="notice-item">?????????</div>
+                <div class="notice-item">当前没有未读通知。</div>
                 {% endfor %}
             </div>
             {% if home_unread_count > 3 %}
             <div class="notice-more">
-                <a href="{% url 'notification:index' %}?status=unread">???? {{ home_unread_count }} ?????</a>
+                <a href="{% url 'notification:index' %}?status=unread">查看全部 {{ home_unread_count }} 条未读通知</a>
             </div>
             {% endif %}
             {% if can_publish_notifications %}
             <div style="margin-top:14px;">
-                <a href="{% url 'notification:index' %}" class="btn btn-primary">??/????</a>
+                <a href="{% url 'notification:index' %}" class="btn btn-primary">发布/管理通知</a>
             </div>
             {% endif %}
         </div>
