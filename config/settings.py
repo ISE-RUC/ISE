@@ -1,9 +1,23 @@
 """
 Django settings for ISE platform.
 """
+import os
 from pathlib import Path
+from urllib.parse import unquote, urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+env_file = BASE_DIR / '.env'
+if env_file.exists():
+    with open(env_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                os.environ.setdefault(key.strip(), value.strip())
 
 SECRET_KEY = 'django-insecure-change-this-in-production'
 
@@ -59,15 +73,79 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+def _build_postgresql_config():
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url:
+        parsed = urlparse(database_url)
+        if parsed.scheme in {"postgres", "postgresql"}:
+            if not parsed.path.lstrip("/"):
+                raise ImproperlyConfigured("DATABASE_URL 缺少数据库名。")
+            if not parsed.username:
+                raise ImproperlyConfigured("DATABASE_URL 缺少数据库用户名。")
+            config = {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": unquote(parsed.path.lstrip("/")),
+                "USER": unquote(parsed.username),
+                "PASSWORD": unquote(parsed.password or ""),
+                "HOST": parsed.hostname or "127.0.0.1",
+                "PORT": str(parsed.port or "5432"),
+                "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+            }
+            sslmode = os.getenv("DB_SSLMODE", "").strip()
+            if sslmode:
+                config["OPTIONS"] = {"sslmode": sslmode}
+            return config
+
+    db_name = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB")
+    db_user = os.getenv("DB_USER") or os.getenv("POSTGRES_USER")
+    db_password = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
+    db_host = os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST")
+    db_port = os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT")
+
+    missing = []
+    if not db_name:
+        missing.append("DB_NAME/POSTGRES_DB")
+    if not db_user:
+        missing.append("DB_USER/POSTGRES_USER")
+    if db_password is None:
+        missing.append("DB_PASSWORD/POSTGRES_PASSWORD")
+    if not db_host:
+        missing.append("DB_HOST/POSTGRES_HOST")
+    if not db_port:
+        missing.append("DB_PORT/POSTGRES_PORT")
+    if missing:
+        raise ImproperlyConfigured(
+            "PostgreSQL 配置不完整，缺少环境变量: " + ", ".join(missing)
+        )
+
+    config = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": db_name,
+        "USER": db_user,
+        "PASSWORD": db_password,
+        "HOST": db_host,
+        "PORT": str(db_port),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
     }
-}
-# To switch to Kingbase (PostgreSQL-compatible), replace with:
-# 'ENGINE': 'django.db.backends.postgresql'
-# and set NAME, USER, PASSWORD, HOST, PORT accordingly.
+    sslmode = os.getenv("DB_SSLMODE", "").strip()
+    if sslmode:
+        config["OPTIONS"] = {"sslmode": sslmode}
+    return config
+
+
+DB_ENGINE = os.getenv("DB_ENGINE", "postgresql").strip().lower()
+
+if DB_ENGINE in {"sqlite", "sqlite3"}:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+else:
+    DATABASES = {
+        "default": _build_postgresql_config()
+    }
 
 AUTH_USER_MODEL = 'users.User'
 
