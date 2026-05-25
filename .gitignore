@@ -225,3 +225,4 @@ uv.lock
 .python-version
 
 .config
+.env.example
