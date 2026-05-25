@@ -50,6 +50,7 @@ class IndexView(TemplateView):
 class PartyNavigationMixin:
     back_url_name = "party:index"
     breadcrumb_items = ()
+    show_page_nav = False
     page_back_label = "返回上一页"
 
     def _resolve_url(self, target, kwargs=None):
@@ -111,9 +112,14 @@ class PartyNavigationMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.setdefault("current_page_url", self.request.get_full_path())
-        context.setdefault("page_back_url", self.get_page_back_url())
-        context.setdefault("page_back_label", self.page_back_label)
-        context.setdefault("breadcrumbs", self.get_breadcrumbs())
+        if self.show_page_nav:
+            context.setdefault("page_back_url", self.get_page_back_url())
+            context.setdefault("page_back_label", self.page_back_label)
+            context.setdefault("breadcrumbs", self.get_breadcrumbs())
+        else:
+            context.setdefault("page_back_url", "")
+            context.setdefault("page_back_label", "")
+            context.setdefault("breadcrumbs", [])
         return context
 
 
