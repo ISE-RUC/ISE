@@ -140,6 +140,20 @@ main {
     border-color:#d7a0aa;
     box-shadow:0 14px 30px rgba(15,23,42,.08);
 }
+.action-item-disabled{
+    cursor:not-allowed;
+    background:linear-gradient(180deg, #fcfcfd 0%, #f7f8fa 100%);
+    border-color:#e5e7eb;
+    box-shadow:none;
+}
+.action-item-disabled:hover{
+    transform:none;
+    border-color:#e5e7eb;
+    box-shadow:none;
+}
+.action-item-disabled .link{
+    color:var(--muted);
+}
 .icon-wrap{
     width:56px;
     height:56px;

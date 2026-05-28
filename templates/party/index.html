@@ -13,11 +13,25 @@
             <p>查看时间轴、材料清单、待办与历史记录。</p>
             <div class="link">进入学生端 →</div>
         </a>
-        <a href="{% if user.is_authenticated %}{% url 'party:party_admin:dashboard' %}{% else %}{% url 'users:login' %}?next={% url 'party:party_admin:dashboard' %}{% endif %}" class="action-item">
+        {% if user.is_authenticated and user.role <= 2 %}
+        <a href="{% url 'party:party_admin:dashboard' %}" class="action-item">
             <h3>管理端</h3>
             <p>查看成员列表、审批工作台和流程规则维护入口。</p>
             <div class="link">进入管理端 →</div>
         </a>
+        {% elif user.is_authenticated %}
+        <div class="action-item action-item-disabled">
+            <h3>管理端</h3>
+            <p>管理端仅对学院领导和管理老师开放。当前身份请在学生端查看进度并提交党团材料。</p>
+            <div class="link">当前账号无管理端权限</div>
+        </div>
+        {% else %}
+        <a href="{% url 'users:login' %}?next={% url 'party:party_admin:dashboard' %}" class="action-item">
+            <h3>管理端</h3>
+            <p>登录后可按角色进入成员管理、审批处理和规则维护入口。</p>
+            <div class="link">登录后进入管理端 →</div>
+        </a>
+        {% endif %}
         <a href="{% url 'users:home' %}" class="action-item">
             <h3>返回首页</h3>
             <p>回到项目首页导航，继续浏览其他业务模块。</p>
