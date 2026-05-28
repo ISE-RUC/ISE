@@ -3,6 +3,7 @@ from io import BytesIO
 from types import SimpleNamespace
 
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.base import ContentFile
 from django.http import FileResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
@@ -316,6 +317,10 @@ def sync_all_requests(student):
     for request_obj in CertificateRequest.objects.filter(applicant=student):
         sync_completed_if_expired(request_obj)
 
+def sync_all_requests_for_queryset(queryset):
+    for request_obj in queryset:
+        sync_completed_if_expired(request_obj)
+
 
 def option_id_from_name(cert_name):
     for key, value in CERTIFICATE_OPTIONS.items():
@@ -325,11 +330,20 @@ def option_id_from_name(cert_name):
 
 
 def get_student_profile(student):
+    gender = "未填写"
+    if student.id_number and len(student.id_number) == 18:
+        # 从身份证号提取性别（倒数第二位，奇数为男，偶数为女）
+        try:
+            gender_digit = int(student.id_number[-2])
+            gender = "男" if gender_digit % 2 == 1 else "女"
+        except (ValueError, IndexError):
+            gender = "未填写"
+
     return {
         "name": student.real_name or student.username,
         "student_id": student.student_id or "未填写",
         "major": student.major or "未填写",
-        "gender": "女",
+        "gender": gender,
     }
 
 
@@ -471,8 +485,11 @@ def build_request_rows(student):
     return rows
 
 
-def get_request_or_404(student, pk):
-    request_obj = get_object_or_404(CertificateRequest, pk=pk, applicant=student)
+def get_request_or_404(user, pk):
+    if user.is_authenticated and user.is_admin_or_above():
+        request_obj = get_object_or_404(CertificateRequest, pk=pk)
+    else:
+        request_obj = get_object_or_404(CertificateRequest, pk=pk, applicant=user)
     sync_completed_if_expired(request_obj)
     request_obj.refresh_from_db()
     return request_obj
@@ -550,26 +567,57 @@ def update_request_for_resubmit(request_obj, selected_type, purpose, attachment_
     return True
 
 
-class ListView(TemplateView):
+class ListView(LoginRequiredMixin, TemplateView):
     template_name = "certificate/index.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        student = ensure_demo_user()
+        user = self.request.user
+        
+        # If admin/leader, show all requests. Else show only their own.
+        if user.is_admin_or_above():
+            sync_all_requests_for_queryset(CertificateRequest.objects.all())
+            queryset = CertificateRequest.objects.all().order_by("-created_at", "-id")
+        else:
+            sync_all_requests(user)
+            queryset = CertificateRequest.objects.filter(applicant=user).order_by("-created_at", "-id")
+            
+        rows = []
+        for item in queryset:
+            status_payload = get_status_payload(item)
+            rows.append(
+                {
+                    "id": item.id,
+                    "reference": item.reference_no,
+                    "cert_type": item.cert_type,
+                    "status": status_payload["status"],
+                    "status_class": status_payload["status_class"],
+                    "created_at": timezone.localtime(item.created_at).strftime("%Y-%m-%d %H:%M"),
+                    "updated_at": timezone.localtime(item.updated_at).strftime("%Y-%m-%d %H:%M"),
+                    "pdf_state": status_payload["pdf_state"],
+                    "can_preview": status_payload["can_preview"],
+                    "can_download": status_payload["can_download"],
+                    "can_revoke": status_payload["can_revoke"],
+                    "can_resubmit": status_payload["can_resubmit"],
+                    "applicant_name": item.applicant.real_name or item.applicant.username,
+                }
+            )
+            
         context["page_intro"] = "按时间查看历史申请，点击某一条即可进入详情查看状态、下载文件或撤回。"
-        context["student_profile"] = get_student_profile(student)
-        context["request_rows"] = build_request_rows(student)
+        context["student_profile"] = get_student_profile(user)
+        context["request_rows"] = rows
+        context["is_admin"] = user.is_admin_or_above()
         return context
 
 
-class CreateView(TemplateView):
+class CreateView(LoginRequiredMixin, TemplateView):
     template_name = "certificate/create.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        student = ensure_demo_user()
+        user = self.request.user
         context["page_intro"] = "新建证明申请时先确认个人信息，再填写用途说明、附件说明并提交。"
-        context["student_profile"] = get_student_profile(student)
+        context["student_profile"] = get_student_profile(user)
         context["certificate_types"] = [{"id": key, **value} for key, value in CERTIFICATE_OPTIONS.items()]
         context["selected_certificate_type"] = self.request.GET.get("type", "party-member")
         context["form_values"] = {
@@ -583,11 +631,11 @@ class CreateView(TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        student = ensure_demo_user()
+        user = request.user if request.user.is_authenticated else ensure_demo_user()
         selected_type = request.POST.get("certificate_type", "party-member")
         purpose = request.POST.get("purpose", "").strip()
         attachment_note = request.POST.get("attachment_note", "").strip()
-        request_obj, success = create_request(student, selected_type, purpose, attachment_note)
+        request_obj, success = create_request(user, selected_type, purpose, attachment_note)
         if success:
             messages.success(request, "申请已提交，当前等待管理员审核。")
         else:
@@ -595,15 +643,15 @@ class CreateView(TemplateView):
         return redirect("certificate:detail", pk=request_obj.pk)
 
 
-class DetailView(TemplateView):
+class DetailView(LoginRequiredMixin, TemplateView):
     template_name = "certificate/detail.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        student = ensure_demo_user()
-        request_obj = get_request_or_404(student, kwargs["pk"])
+        user = self.request.user
+        request_obj = get_request_or_404(user, kwargs["pk"])
 
-        context["student_profile"] = get_student_profile(student)
+        context["student_profile"] = get_student_profile(request_obj.applicant)
         context["request_obj"] = request_obj
         context["active_application"] = get_status_payload(request_obj)
         context["selected_certificate_type"] = option_id_from_name(request_obj.cert_type)
@@ -642,10 +690,10 @@ class DetailView(TemplateView):
         return context
 
 
-class ResubmitView(View):
+class ResubmitView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        student = ensure_demo_user()
-        request_obj = get_request_or_404(student, pk)
+        user = request.user
+        request_obj = get_request_or_404(user, pk)
 
         if request_obj.status not in {
             CertificateRequest.STATUS_MATERIAL_REJECTED,
@@ -667,10 +715,10 @@ class ResubmitView(View):
         return redirect("certificate:detail", pk=pk)
 
 
-class RevokeView(View):
+class RevokeView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        student = ensure_demo_user()
-        request_obj = get_request_or_404(student, pk)
+        user = request.user
+        request_obj = get_request_or_404(user, pk)
         if request_obj.status != CertificateRequest.STATUS_APPROVED_OBSERVING:
             messages.warning(request, "当前状态下不能撤回。")
             return redirect("certificate:detail", pk=pk)
@@ -685,10 +733,10 @@ class RevokeView(View):
         return redirect("certificate:detail", pk=pk)
 
 
-class DownloadView(View):
+class DownloadView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        student = ensure_demo_user()
-        request_obj = get_request_or_404(student, pk)
+        user = request.user
+        request_obj = get_request_or_404(user, pk)
         if request_obj.status != CertificateRequest.STATUS_COMPLETED:
             messages.warning(request, "申请尚未全流程办结，只能查看预览稿，暂不能下载正式文件。")
             return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
@@ -696,27 +744,27 @@ class DownloadView(View):
             messages.warning(request, "该文件已作废，不能下载。")
             return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
         if not request_obj.generated_pdf or not request_obj.generated_pdf.name.lower().endswith(".pdf"):
-            generate_demo_file(request_obj, student)
+            generate_demo_file(request_obj, request_obj.applicant)
             request_obj.save(update_fields=["generated_pdf", "is_pdf_void", "updated_at"])
         return redirect(request_obj.generated_pdf.url)
 
 
-class PreviewDraftView(View):
+class PreviewDraftView(LoginRequiredMixin, View):
     def get(self, request):
-        student = ensure_demo_user()
+        user = request.user
         selected_type = request.GET.get("certificate_type", "party-member")
         purpose = request.GET.get("purpose", "").strip() or "预览用途，正式提交时以填写内容为准"
         draft_request = build_draft_preview_request(selected_type, purpose)
-        pdf_bytes = build_certificate_pdf(draft_request, student, is_preview=True)
+        pdf_bytes = build_certificate_pdf(draft_request, user, is_preview=True)
         return pdf_response(pdf_bytes, f"{draft_request.reference_no}.pdf")
 
 
-class PreviewView(View):
+class PreviewView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        student = ensure_demo_user()
-        request_obj = get_request_or_404(student, pk)
+        user = request.user
+        request_obj = get_request_or_404(user, pk)
         if request_obj.is_pdf_void:
             messages.warning(request, "该文件已作废，不能预览。")
             return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
-        pdf_bytes = build_certificate_pdf(request_obj, student, is_preview=True)
+        pdf_bytes = build_certificate_pdf(request_obj, request_obj.applicant, is_preview=True)
         return pdf_response(pdf_bytes, f"{request_obj.reference_no}-preview.pdf")
