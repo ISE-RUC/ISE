@@ -16,12 +16,21 @@ from .. import prompts
 def _llm():
     from langchain_openai import ChatOpenAI
 
-    api_key = "sk-86df2f0c9c2047b7a15132339dd53dc8"
-    model = "deepseek-chat"
-    base_url = "https://api.deepseek.com"
+    api_key = (os.getenv("LLM_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError("LLM_API_KEY is not set")
+
+    model = (os.getenv("LLM_MODEL") or "qwen3.5-flash").strip()
+    base_url = (
+        os.getenv("LLM_BASE_URL") or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    ).strip().rstrip("/")
     temperature = float(os.getenv("LLM_TEMPERATURE") or "0.2")
     timeout = float(os.getenv("LLM_TIMEOUT") or "30")
     max_retries = int(os.getenv("LLM_MAX_RETRIES") or "1")
+
+    extra_body: dict[str, Any] = {}
+    if model.startswith("qwen3") and (os.getenv("QWEN_ENABLE_THINKING") or "").strip().lower() not in ("1", "true", "yes", "on"):
+        extra_body["enable_thinking"] = False
 
     return ChatOpenAI(
         temperature=temperature,
@@ -30,6 +39,7 @@ def _llm():
         base_url=base_url,
         timeout=timeout,
         max_retries=max_retries,
+        extra_body=extra_body or None,
     )
 
 
