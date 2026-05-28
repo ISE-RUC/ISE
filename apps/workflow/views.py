@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
+from datetime import datetime
 
 from apps.workflow.models import (
     WorkflowTemplate, WorkflowStep, WorkflowInstance, WorkflowStepRecord
@@ -66,17 +67,26 @@ class StudentDetailView(TemplateView):
         ).select_related('step', 'reviewer').order_by('step__order')
 
         # 计算倒计时
-        countdown = None
+        countdown = '暂无'
         if instance.deadline:
-            delta = instance.deadline - timezone.now()
-            if delta.days > 0:
-                countdown = f'{delta.days} 天'
-            elif delta.seconds > 3600:
-                countdown = f'{delta.seconds // 3600} 小时'
-            elif delta.seconds > 60:
-                countdown = f'{delta.seconds // 60} 分钟'
-            else:
-                countdown = '已到期'
+            try:
+                delta = instance.deadline - timezone.now()
+                if delta.days > 365:
+                    countdown = f'{delta.days // 365} 年后'
+                elif delta.days > 0:
+                    countdown = f'{delta.days} 天'
+                elif delta.days < -365:
+                    countdown = '已过期很久'
+                elif delta.days < 0:
+                    countdown = '已过期'
+                elif delta.seconds > 3600:
+                    countdown = f'{delta.seconds // 3600} 小时'
+                elif delta.seconds > 60:
+                    countdown = f'{delta.seconds // 60} 分钟'
+                else:
+                    countdown = '已到期'
+            except (OverflowError, ValueError, OSError):
+                countdown = '时间异常'
 
         context.update({
             'instance': instance,
@@ -137,17 +147,26 @@ class AdminDetailView(TemplateView):
         ).select_related('step', 'reviewer').order_by('step__order')
 
         # 计算倒计时
-        countdown = None
+        countdown = '暂无'
         if instance.deadline:
-            delta = instance.deadline - timezone.now()
-            if delta.days > 0:
-                countdown = f'{delta.days} 天'
-            elif delta.seconds > 3600:
-                countdown = f'{delta.seconds // 3600} 小时'
-            elif delta.seconds > 60:
-                countdown = f'{delta.seconds // 60} 分钟'
-            else:
-                countdown = '已到期'
+            try:
+                delta = instance.deadline - timezone.now()
+                if delta.days > 365:
+                    countdown = f'{delta.days // 365} 年后'
+                elif delta.days > 0:
+                    countdown = f'{delta.days} 天'
+                elif delta.days < -365:
+                    countdown = '已过期很久'
+                elif delta.days < 0:
+                    countdown = '已过期'
+                elif delta.seconds > 3600:
+                    countdown = f'{delta.seconds // 3600} 小时'
+                elif delta.seconds > 60:
+                    countdown = f'{delta.seconds // 60} 分钟'
+                else:
+                    countdown = '已到期'
+            except (OverflowError, ValueError, OSError):
+                countdown = '时间异常'
 
         context.update({
             'instance': instance,
@@ -226,8 +245,18 @@ class CreateInstanceView(View):
         # 设置截止时间
         if deadline:
             try:
-                instance.deadline = deadline
+                deadline_dt = datetime.strptime(deadline, '%Y-%m-%dT%H:%M')
+                # 验证日期合理性：不能早于2000年，不能晚于2100年
+                if deadline_dt.year < 2000 or deadline_dt.year > 2100:
+                    messages.error(request, '截止时间不合理，请输入有效的截止时间。')
+                    instance.delete()
+                    return redirect('workflow:student')
+                instance.deadline = deadline_dt
                 instance.save()
+            except ValueError:
+                messages.error(request, '截止时间格式不正确。')
+                instance.delete()
+                return redirect('workflow:student')
             except Exception:
                 pass
 
