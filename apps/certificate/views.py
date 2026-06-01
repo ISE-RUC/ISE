@@ -20,8 +20,6 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from apps.users.models import User
-
 from .models import CertificateLog, CertificateMaterial, CertificateRequest
 
 
@@ -117,21 +115,6 @@ def register_pdf_font():
         except Exception:
             continue
 
-
-def ensure_demo_user():
-    user, created = User.objects.get_or_create(
-        username="demo_student",
-        defaults={
-            "student_id": "2023123456",
-            "real_name": "张晓晴",
-            "major": "软件工程",
-            "role": User.ROLE_STUDENT,
-        },
-    )
-    if created:
-        user.set_password("demo123456")
-        user.save()
-    return user
 
 
 def build_reference_no():
@@ -631,7 +614,7 @@ class CreateView(LoginRequiredMixin, TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        user = request.user if request.user.is_authenticated else ensure_demo_user()
+        user = request.user
         selected_type = request.POST.get("certificate_type", "party-member")
         purpose = request.POST.get("purpose", "").strip()
         attachment_note = request.POST.get("attachment_note", "").strip()
