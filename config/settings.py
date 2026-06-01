@@ -21,7 +21,7 @@ if env_file.exists():
 
 SECRET_KEY = 'django-insecure-change-this-in-production'
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 

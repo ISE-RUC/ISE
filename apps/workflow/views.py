@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views import View
@@ -11,7 +12,7 @@ from apps.workflow.models import (
 from apps.users.models import User
 
 
-class SelectView(TemplateView):
+class SelectView(LoginRequiredMixin, TemplateView):
     """选择端页面"""
     template_name = 'workflow/select.html'
 
@@ -22,7 +23,7 @@ class SelectView(TemplateView):
         return context
 
 
-class StudentView(TemplateView):
+class StudentView(LoginRequiredMixin, TemplateView):
     """学生端 - 查看自己的流程"""
     template_name = 'workflow/student.html'
 
@@ -43,7 +44,7 @@ class StudentView(TemplateView):
         return context
 
 
-class StudentDetailView(TemplateView):
+class StudentDetailView(LoginRequiredMixin, TemplateView):
     """学生端 - 流程详情"""
     template_name = 'workflow/student_detail.html'
 
@@ -96,7 +97,7 @@ class StudentDetailView(TemplateView):
         return context
 
 
-class AdminView(TemplateView):
+class AdminView(LoginRequiredMixin, TemplateView):
     """管理端 - 管理流程"""
     template_name = 'workflow/admin.html'
 
@@ -123,7 +124,7 @@ class AdminView(TemplateView):
         return context
 
 
-class AdminDetailView(TemplateView):
+class AdminDetailView(LoginRequiredMixin, TemplateView):
     """管理端 - 流程详情"""
     template_name = 'workflow/admin_detail.html'
 
@@ -176,7 +177,7 @@ class AdminDetailView(TemplateView):
         return context
 
 
-class CreateTemplateView(View):
+class CreateTemplateView(LoginRequiredMixin, View):
     """创建流程模板"""
     def post(self, request):
         user = request.user
@@ -213,7 +214,7 @@ class CreateTemplateView(View):
         return redirect('workflow:admin')
 
 
-class CreateInstanceView(View):
+class CreateInstanceView(LoginRequiredMixin, View):
     """创建流程实例（学生发起流程）"""
     def post(self, request):
         user = request.user
@@ -278,7 +279,7 @@ class CreateInstanceView(View):
         return redirect('workflow:student_detail', pk=instance.pk)
 
 
-class ReviewStepView(View):
+class ReviewStepView(LoginRequiredMixin, View):
     """审批流程步骤"""
     def post(self, request, pk):
         user = request.user
@@ -333,7 +334,7 @@ class ReviewStepView(View):
         return redirect('workflow:admin_detail', pk=pk)
 
 
-class DeleteTemplateView(View):
+class DeleteTemplateView(LoginRequiredMixin, View):
     """删除流程模板"""
     def post(self, request, pk):
         user = request.user
@@ -348,7 +349,7 @@ class DeleteTemplateView(View):
         return redirect('workflow:admin')
 
 
-class DeleteInstanceView(View):
+class DeleteInstanceView(LoginRequiredMixin, View):
     """删除流程实例"""
     def post(self, request, pk):
         user = request.user

@@ -43,7 +43,7 @@ from apps.party.services import import_export
 from apps.users.models import User
 
 
-class IndexView(TemplateView):
+class IndexView(LoginRequiredMixin, TemplateView):
     template_name = "party/index.html"
 
 
