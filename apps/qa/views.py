@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
@@ -193,7 +194,7 @@ def _switch_payload(request, cid: str) -> dict | None:
     }
 
 
-class IndexView(TemplateView):
+class IndexView(LoginRequiredMixin, TemplateView):
     template_name = "qa/index.html"
 
     def get_context_data(self, **kwargs):
@@ -213,7 +214,7 @@ class IndexView(TemplateView):
         return context
 
 
-class ChatMessageView(View):
+class ChatMessageView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         content_type = (request.headers.get("Content-Type") or "").lower()
         if "application/json" in content_type:
@@ -232,17 +233,17 @@ class ChatMessageView(View):
         return JsonResponse(success(data=payload))
 
 
-class ResetConversationView(View):
+class ResetConversationView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         return JsonResponse(success(data=_reset_payload(request)))
 
 
-class NewConversationView(View):
+class NewConversationView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         return JsonResponse(success(data=_new_payload(request)))
 
 
-class SwitchConversationView(View):
+class SwitchConversationView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         content_type = (request.headers.get("Content-Type") or "").lower()
         if "application/json" in content_type:

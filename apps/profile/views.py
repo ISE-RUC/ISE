@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views import View
@@ -38,7 +39,7 @@ def _serialize_honor(honor):
     }
 
 
-class SelectView(TemplateView):
+class SelectView(LoginRequiredMixin, TemplateView):
     """选择端页面"""
     template_name = 'profile/select.html'
 
@@ -49,7 +50,7 @@ class SelectView(TemplateView):
         return context
 
 
-class StudentView(TemplateView):
+class StudentView(LoginRequiredMixin, TemplateView):
     """学生端 - 展示自己的荣誉"""
     template_name = 'profile/student.html'
 
@@ -66,7 +67,7 @@ class StudentView(TemplateView):
         return context
 
 
-class AdminView(TemplateView):
+class AdminView(LoginRequiredMixin, TemplateView):
     """管理端 - 录入和管理荣誉"""
     template_name = 'profile/admin.html'
 
@@ -89,7 +90,7 @@ class AdminView(TemplateView):
         return context
 
 
-class AddHonorView(View):
+class AddHonorView(LoginRequiredMixin, View):
     """录入荣誉"""
     def post(self, request):
         user = request.user
@@ -143,7 +144,7 @@ class AddHonorView(View):
         return redirect('profile:admin')
 
 
-class DeleteHonorView(View):
+class DeleteHonorView(LoginRequiredMixin, View):
     """删除荣誉"""
     def post(self, request, pk):
         user = request.user
