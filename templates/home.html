@@ -16,13 +16,13 @@
             </div>
         </div>
 
-        <div class="search-box">
+        <form class="search-box" method="get" action="{% url 'qa:index' %}">
             <div class="section-label">智能问答检索</div>
             <div class="search-row">
-                <input type="text" placeholder="请输入问题，如：国奖申请条件、请假证明模板、入党流程节点..." />
-                <button class="btn btn-primary">立即检索</button>
+                <input name="q" type="text" placeholder="请输入问题，如：国奖申请条件、请假证明模板、入党流程节点..." />
+                <button class="btn btn-primary" type="submit">立即检索</button>
             </div>
-        </div>
+        </form>
 
         <div class="action-grid">
             <a href="{% url 'party:index' %}" class="action-item">
@@ -54,6 +54,12 @@
                 <h3>荣誉画像</h3>
                 <p>个人荣誉、骨干工作量、成长记录</p>
                 <div class="link">进入功能 →</div>
+            </a>
+            <a href="{% url 'profile:index' %}" class="action-item">
+                <div class="icon-wrap">👤</div>
+                <h3>个人信息</h3>
+                <p>维护姓名、学号、专业、年级和邮箱</p>
+                <div class="link">编辑资料 →</div>
             </a>
             <div class="action-item">
                 <div class="icon-wrap">🕒</div>

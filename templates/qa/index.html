@@ -1,9 +1,47 @@
 {% extends "base.html" %}
 {% block title %}智能问答{% endblock %}
 {% block content %}
-<div style="padding: 2rem; background: white; border-radius: 8px;">
-    <h1>智能问答</h1>
-    <p style="margin-top: 1rem; color: #666;">此模块待组员实现</p>
-    <a href="{% url 'users:home' %}" style="display: inline-block; margin-top: 1rem; color: #2c3e50;">← 返回首页</a>
-</div>
+<section class="card">
+    <div class="card-head">
+        <h2>智能问答</h2>
+        <span class="pill pill-primary">政策检索</span>
+    </div>
+    <form class="search-box" method="get">
+        <div class="section-label">输入问题或关键词</div>
+        <div class="search-row">
+            <input name="q" value="{{ query }}" placeholder="请输入问题，如：国奖申请条件、请假证明模板、入党流程节点...">
+            <button class="btn btn-primary" type="submit">立即检索</button>
+        </div>
+    </form>
+
+    {% if has_searched %}
+    <div class="notice-list" style="margin-top:22px;">
+        {% for item in faq_results %}
+        <div class="notice-item">
+            <strong>{{ item.question }}</strong>
+            <p>{{ item.answer }}</p>
+        </div>
+        {% endfor %}
+        {% for item in policy_results %}
+        <a class="notice-item notice-link-item" href="{{ item.file.url }}" target="_blank" rel="noopener">
+            <div><strong>{{ item.title }}</strong><p>政策文件</p></div>
+            <span>下载/查看</span>
+        </a>
+        {% endfor %}
+        {% for item in template_results %}
+        <a class="notice-item notice-link-item" href="{{ item.file.url }}" target="_blank" rel="noopener">
+            <div><strong>{{ item.name }}</strong><p>表单模板</p></div>
+            <span>下载/查看</span>
+        </a>
+        {% endfor %}
+        {% if not faq_results and not policy_results and not template_results %}
+        <div class="notice-item">未检索到相关内容，请调整关键词后再试。</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div style="margin-top:18px;">
+        <a class="btn" href="{% url 'users:home' %}">返回首页</a>
+    </div>
+</section>
 {% endblock %}

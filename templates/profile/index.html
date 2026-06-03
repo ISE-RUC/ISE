@@ -1,9 +1,48 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}个人画像{% endblock %}
 {% block content %}
-<div style="padding: 2rem; background: white; border-radius: 8px;">
-    <h1>个人画像</h1>
-    <p style="margin-top: 1rem; color: #666;">此模块待组员实现</p>
-    <a href="{% url 'users:home' %}" style="display: inline-block; margin-top: 1rem; color: #2c3e50;">← 返回首页</a>
-</div>
+<link rel="stylesheet" href="{% static 'certificate/certificate.css' %}">
+<section class="card">
+    <div class="card-head">
+        <h2>个人信息</h2>
+        <span class="pill pill-primary">{{ profile_user.get_role_display }}</span>
+    </div>
+    <form method="post" class="certificate-form">
+        {% csrf_token %}
+        <div class="certificate-form-grid">
+            <div class="notice-item">
+                <label class="certificate-field-label" for="real_name">姓名</label>
+                <input id="real_name" name="real_name" value="{{ profile_user.real_name }}">
+            </div>
+            {% if profile_user.role <= 2 %}
+            <div class="notice-item">
+                <label class="certificate-field-label" for="employee_id">教职工号</label>
+                <input id="employee_id" name="employee_id" value="{{ profile_user.employee_id }}">
+            </div>
+            {% else %}
+            <div class="notice-item">
+                <label class="certificate-field-label" for="student_id">学号</label>
+                <input id="student_id" name="student_id" value="{{ profile_user.student_id }}">
+            </div>
+            {% endif %}
+            <div class="notice-item">
+                <label class="certificate-field-label" for="grade">年级</label>
+                <input id="grade" name="grade" value="{{ profile_user.grade }}">
+            </div>
+            <div class="notice-item">
+                <label class="certificate-field-label" for="major">专业</label>
+                <input id="major" name="major" value="{{ profile_user.major }}">
+            </div>
+            <div class="notice-item">
+                <label class="certificate-field-label" for="email">邮箱</label>
+                <input id="email" name="email" type="email" value="{{ profile_user.email }}">
+            </div>
+        </div>
+        <div class="certificate-submit-row">
+            <button class="btn btn-primary" type="submit">保存信息</button>
+            <a class="btn" href="{% url 'users:home' %}">返回首页</a>
+        </div>
+    </form>
+</section>
 {% endblock %}

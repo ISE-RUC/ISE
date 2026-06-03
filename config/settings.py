@@ -1,15 +1,54 @@
 """
 Django settings for ISE platform.
 """
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-change-this-in-production'
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "ise-local-dev-secret-key-change-before-deployment-2026",
+)
 
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "").lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,10.10.0.29,testserver",
+    ).split(",")
+    if host.strip()
+]
+SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", ""
+).lower() in {"1", "true", "yes", "on"}
+SECURE_HSTS_PRELOAD = os.environ.get("DJANGO_SECURE_HSTS_PRELOAD", "").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+SESSION_COOKIE_SECURE = os.environ.get("DJANGO_SESSION_COOKIE_SECURE", "").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+CSRF_COOKIE_SECURE = os.environ.get("DJANGO_CSRF_COOKIE_SECURE", "").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -33,6 +72,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.users.middleware.AuditLogMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
