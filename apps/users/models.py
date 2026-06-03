@@ -19,6 +19,7 @@ class User(AbstractUser):
     ]
 
     student_id = models.CharField('学号', max_length=20, unique=True, null=True, blank=True)
+    employee_id = models.CharField('教职工号', max_length=20, unique=True, null=True, blank=True)
     role = models.IntegerField('角色', choices=ROLE_CHOICES, default=ROLE_STUDENT)
     real_name = models.CharField('真实姓名', max_length=50, blank=True)
     grade = models.CharField('年级', max_length=10, blank=True)
@@ -39,8 +40,20 @@ class User(AbstractUser):
     def is_admin_or_above(self):
         return self.role <= self.ROLE_ADMIN
 
+    def is_cadre_or_above(self):
+        return self.role <= self.ROLE_CADRE
+
+    def can_publish_notice(self):
+        return self.role <= self.ROLE_ADMIN
+
     def can_view_sensitive(self):
         return self.role <= self.ROLE_ADMIN
+
+    def get_login_account(self):
+        return self.student_id or self.employee_id or self.username
+
+    def get_display_name(self):
+        return self.real_name or self.username
 
 
 class AuditLog(models.Model):

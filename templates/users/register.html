@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}注册{% endblock %}
+{% block content %}
+<div class="auth-card">
+    <h1>账号注册</h1>
+    <p>学生使用学号注册，老师和领导使用教职工号注册。</p>
+    <form method="post" class="auth-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_value }}">
+        <div class="form-row">
+            <label for="{{ form.role.id_for_label }}">身份</label>
+            {{ form.role }}
+            {{ form.role.errors }}
+        </div>
+        <div class="form-row">
+            <label for="{{ form.real_name.id_for_label }}">姓名</label>
+            {{ form.real_name }}
+            {{ form.real_name.errors }}
+        </div>
+        <div class="notification-target-grid">
+            <div class="form-row">
+                <label for="{{ form.student_id.id_for_label }}">学号</label>
+                {{ form.student_id }}
+                {{ form.student_id.errors }}
+            </div>
+            <div class="form-row">
+                <label for="{{ form.employee_id.id_for_label }}">教职工号</label>
+                {{ form.employee_id }}
+                {{ form.employee_id.errors }}
+            </div>
+        </div>
+        <div class="form-row">
+            <label for="{{ form.password1.id_for_label }}">密码</label>
+            {{ form.password1 }}
+            {{ form.password1.errors }}
+        </div>
+        <div class="form-row">
+            <label for="{{ form.password2.id_for_label }}">确认密码</label>
+            {{ form.password2 }}
+            {{ form.password2.errors }}
+        </div>
+        {% if form.non_field_errors %}
+        <div class="form-error">{{ form.non_field_errors|join:" " }}</div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">注册并登录</button>
+    </form>
+    <p class="auth-link">
+        已有账号？
+        <a href="{% url 'users:login' %}{% if next_value %}?next={{ next_value|urlencode }}{% endif %}">去登录</a>
+    </p>
+</div>
+{% endblock %}
