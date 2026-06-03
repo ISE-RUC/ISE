@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% block title %}审批工作台{% endblock %}
+{% block content %}
+<section class="card">
+    {% include "party/_page_nav.html" %}
+    <div class="card-head">
+        <h2>审批工作台</h2>
+        <span class="pill pill-primary">管理视图</span>
+    </div>
+    <div class="action-bar section-spaced">
+        <a href="{% url 'party:party_admin:dashboard' %}" class="btn btn-primary">返回管理端总览</a>
+        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
+    </div>
+    <p class="hero-desc">面向管理老师集中处理待审批任务、核对材料齐备度和追踪当前节点链路。当前页已强化为高密度工作台视图，尽量减少审批过程中的往返跳转。</p>
+    {% if selected_member_filter %}
+    <div class="note-box note-box-primary">当前仅展示指定学生的相关审批任务。<a href="{% url 'party:party_admin:approvals' %}" class="text-link">查看全部任务</a></div>
+    {% endif %}
+    <form method="get" class="filter-bar section-spaced">
+        <div class="form-row">
+            <label for="approval-query">关键词</label>
+            <input id="approval-query" type="text" name="q" value="{{ current_filters.q }}" placeholder="姓名、学号、节点名称">
+        </div>
+        <div class="form-row">
+            <label for="approval-stage">当前阶段</label>
+            <select id="approval-stage" name="stage">
+                <option value="">全部阶段</option>
+                {% for value, label in stage_choices %}
+                <option value="{{ value }}" {% if current_filters.stage == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="approval-sort">排序方式</label>
+            <select id="approval-sort" name="sort">
+                <option value="created_asc" {% if current_filters.sort == 'created_asc' %}selected{% endif %}>按创建时间升序</option>
+                <option value="created_desc" {% if current_filters.sort == 'created_desc' %}selected{% endif %}>按创建时间降序</option>
+                <option value="student_asc" {% if current_filters.sort == 'student_asc' %}selected{% endif %}>按学生姓名升序</option>
+                <option value="student_desc" {% if current_filters.sort == 'student_desc' %}selected{% endif %}>按学生姓名降序</option>
+                <option value="stage_asc" {% if current_filters.sort == 'stage_asc' %}selected{% endif %}>按节点顺序升序</option>
+                <option value="stage_desc" {% if current_filters.sort == 'stage_desc' %}selected{% endif %}>按节点顺序降序</option>
+            </select>
+        </div>
+        {% if current_filters.member %}
+        <input type="hidden" name="member" value="{{ current_filters.member }}">
+        {% endif %}
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">筛选</button>
+            <a href="{% url 'party:party_admin:approvals' %}" class="btn">重置</a>
+        </div>
+    </form>
+
+    <div class="grid-main party-two-column">
+        <div class="card card-subtle">
+            <div class="section-header">
+                <h3>待审批任务</h3>
+                <span class="pill pill-primary">{{ pending_page_obj.paginator.count }} 项</span>
+            </div>
+            {% if tasks %}
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="operation" value="batch_process">
+                <input type="hidden" name="redirect_to" value="{{ current_page_url }}">
+                {{ batch_decision_form.non_field_errors }}
+                <div class="note-box note-box-primary">
+                    勾选当前页待审批任务后，可执行批量通过或批量驳回。
+                </div>
+                <div class="rules-form-grid">
+                    <div class="form-row">
+                        <label for="{{ batch_decision_form.action.id_for_label }}">批量处理结果</label>
+                        {{ batch_decision_form.action }}
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ batch_decision_form.comment.id_for_label }}">批量审批意见</label>
+                        {{ batch_decision_form.comment }}
+                        {{ batch_decision_form.comment.errors }}
+                    </div>
+                </div>
+                <div class="stack-list">
+                    {% for summary in task_summaries %}
+                    {% with task=summary.task %}
+                    <div class="stack-item approval-select-item approval-workbench-item {% if selected_task and selected_task.id == task.id %}stack-active{% endif %}">
+                        <label class="approval-checkbox">
+                            <input type="checkbox" name="task_ids" value="{{ task.id }}" {% if task.id|stringformat:"s" in batch_selected_task_ids %}checked{% endif %}>
+                            <span>批量处理</span>
+                        </label>
+                        <a href="?task={{ task.id }}{{ pending_page_query }}" class="approval-select-main">
+                            <div class="approval-main-copy">
+                                <div class="approval-main-topline">
+                                    <strong>{{ task.stage_instance.member.user.real_name|default:task.stage_instance.member.user.username }}</strong>
+                                    <span class="pill pill-primary">{{ task.stage_instance.member.get_track_type_display }}</span>
+                                    {% if summary.all_ready %}
+                                    <span class="pill pill-success">材料齐备</span>
+                                    {% else %}
+                                    <span class="pill pill-warning">待核对材料</span>
+                                    {% endif %}
+                                    {% if summary.is_overdue %}
+                                    <span class="pill pill-warning">节点逾期</span>
+                                    {% endif %}
+                                </div>
+                                <div class="muted-text">{{ task.stage_instance.stage_definition.name }} | 当前阶段：{{ task.stage_instance.member.get_current_stage_display }}</div>
+                                <div class="approval-meta-grid">
+                                    <span>账号：{{ task.stage_instance.member.user.username }}</span>
+                                    <span>学号：{{ task.stage_instance.member.user.student_id|default:"--" }}</span>
+                                    <span>材料：{{ summary.submitted_count }}/{{ summary.total_count }}</span>
+                                    <span>审批角色：{{ task.get_assignee_role_display }}</span>
+                                    <span>年级 / 专业：{{ summary.member_grade }} / {{ summary.member_major }}</span>
+                                    <span>成员待办：{{ summary.pending_task_count }} | 可撤回：{{ summary.reversible_task_count }}</span>
+                                    <span>提交意见：{{ task.comment|default:"--" }}</span>
+                                    <span>最新材料：{% if summary.latest_submission %}{{ summary.latest_submission.submitted_at|date:"Y-m-d H:i" }}{% else %}暂无{% endif %}</span>
+                                </div>
+                            </div>
+                            <div class="status-column">
+                                <span class="pill pill-warning">{{ task.get_status_display }}</span>
+                                <div class="muted-text">{{ task.created_at|date:"Y-m-d H:i" }}</div>
+                            </div>
+                        </a>
+                    </div>
+                    {% endwith %}
+                    {% endfor %}
+                </div>
+                <div class="action-bar section-spaced">
+                    <button type="submit" class="btn btn-primary">批量处理当前页选中任务</button>
+                </div>
+            </form>
+            {% else %}
+            <div class="empty-panel compact">
+                <h3>当前没有待审批任务</h3>
+                <p>学生提交审批后会在这里出现。</p>
+            </div>
+            {% endif %}
+            {% if pending_page_obj and pending_page_obj.paginator.num_pages > 1 %}
+            <div class="pagination-bar section-spaced">
+                {% if pending_page_obj.has_previous %}
+                <a href="?pending_page={{ pending_page_obj.previous_page_number }}{{ pending_page_query }}" class="btn">上一页</a>
+                {% else %}
+                <span class="btn btn-disabled">上一页</span>
+                {% endif %}
+                <span class="muted-text">第 {{ pending_page_obj.number }} / {{ pending_page_obj.paginator.num_pages }} 页</span>
+                {% if pending_page_obj.has_next %}
+                <a href="?pending_page={{ pending_page_obj.next_page_number }}{{ pending_page_query }}" class="btn">下一页</a>
+                {% else %}
+                <span class="btn btn-disabled">下一页</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="section-header section-spaced">
+                <h3>可撤回结果</h3>
+                <span class="pill pill-warning">{{ reversible_page_obj.paginator.count }} 项</span>
+            </div>
+            {% if reversible_tasks %}
+            <div class="stack-list">
+                {% for summary in reversible_task_summaries %}
+                {% with task=summary.task %}
+                <a href="?task={{ task.id }}{{ reversible_page_query }}" class="stack-item stack-link approval-workbench-item {% if selected_task and selected_task.id == task.id %}stack-active{% endif %}">
+                    <div class="approval-main-copy">
+                        <div class="approval-main-topline">
+                            <strong>{{ task.stage_instance.member.user.real_name|default:task.stage_instance.member.user.username }}</strong>
+                            <span class="pill pill-primary">{{ task.stage_instance.member.get_track_type_display }}</span>
+                        </div>
+                        <div class="muted-text">{{ task.stage_instance.stage_definition.name }} | 当前阶段：{{ task.stage_instance.member.get_current_stage_display }}</div>
+                        <div class="approval-meta-grid">
+                            <span>账号：{{ task.stage_instance.member.user.username }}</span>
+                            <span>学号：{{ task.stage_instance.member.user.student_id|default:"--" }}</span>
+                            <span>材料：{{ summary.submitted_count }}/{{ summary.total_count }}</span>
+                            <span>处理时间：{% if task.processed_at %}{{ task.processed_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="status-column">
+                        <span class="pill pill-warning">{{ task.get_status_display }}</span>
+                        <div class="muted-text">截止：{{ task.can_withdraw_until|date:"Y-m-d H:i" }}</div>
+                    </div>
+                </a>
+                {% endwith %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-panel compact">
+                <p>当前没有处于撤回时效内的审批结果。</p>
+            </div>
+            {% endif %}
+            {% if reversible_page_obj and reversible_page_obj.paginator.num_pages > 1 %}
+            <div class="pagination-bar section-spaced">
+                {% if reversible_page_obj.has_previous %}
+                <a href="?reversible_page={{ reversible_page_obj.previous_page_number }}{{ reversible_page_query }}" class="btn">上一页</a>
+                {% else %}
+                <span class="btn btn-disabled">上一页</span>
+                {% endif %}
+                <span class="muted-text">第 {{ reversible_page_obj.number }} / {{ reversible_page_obj.paginator.num_pages }} 页</span>
+                {% if reversible_page_obj.has_next %}
+                <a href="?reversible_page={{ reversible_page_obj.next_page_number }}{{ reversible_page_query }}" class="btn">下一页</a>
+                {% else %}
+                <span class="btn btn-disabled">下一页</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card card-subtle">
+            {% if selected_task %}
+            <div class="section-header">
+                <h3>任务详情</h3>
+                <span class="pill pill-primary">{{ selected_task.stage_instance.stage_definition.name }}</span>
+            </div>
+            <div class="dashboard-summary approval-detail-summary compact-summary">
+                <div class="summary-item">
+                    <div class="summary-label">流程类型</div>
+                    <div class="summary-value">{{ selected_track_label }}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">材料完成度</div>
+                    <div class="summary-value">{{ selected_material_ready_count }}/{{ selected_material_total_count }}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">任务状态</div>
+                    <div class="summary-value">{{ selected_task.get_status_display }}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">最新材料提交</div>
+                    <div class="summary-value">
+                        {% if selected_latest_submission %}{{ selected_latest_submission.submitted_at|date:"m-d H:i" }}{% else %}暂无{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="detail-grid">
+                <div><span class="muted-text">学生</span><strong>{{ selected_task.stage_instance.member.user.real_name|default:selected_task.stage_instance.member.user.username }}</strong></div>
+                <div><span class="muted-text">账号</span><strong>{{ selected_task.stage_instance.member.user.username }}</strong></div>
+                <div><span class="muted-text">学号</span><strong>{{ selected_task.stage_instance.member.user.student_id|default:"--" }}</strong></div>
+                <div><span class="muted-text">当前阶段</span><strong>{{ selected_task.stage_instance.member.get_current_stage_display }}</strong></div>
+                <div><span class="muted-text">节点状态</span><strong>{{ selected_task.stage_instance.get_status_display }}</strong></div>
+                <div><span class="muted-text">提交时间</span><strong>{{ selected_task.created_at|date:"Y-m-d H:i" }}</strong></div>
+                <div><span class="muted-text">审批角色</span><strong>{{ selected_task.get_assignee_role_display }}</strong></div>
+                <div><span class="muted-text">阶段备注</span><strong>{{ selected_task.stage_instance.remark|default:"--" }}</strong></div>
+                <div><span class="muted-text">学生提交意见</span><strong>{{ selected_task.comment|default:"--" }}</strong></div>
+            </div>
+
+            <div class="section-header section-spaced">
+                <h3>成员上下文</h3>
+                <a href="{% url 'party:party_admin:member_detail' selected_task.stage_instance.member.id %}?return_to={{ current_page_url|urlencode }}" class="text-link">打开完整成员详情</a>
+            </div>
+            <div class="detail-grid">
+                <div><span class="muted-text">年级</span><strong>{{ selected_member_context.grade }}</strong></div>
+                <div><span class="muted-text">专业</span><strong>{{ selected_member_context.major }}</strong></div>
+                <div><span class="muted-text">成员待审批任务</span><strong>{{ selected_member_context.pending_task_count }}</strong></div>
+                <div><span class="muted-text">成员可撤回结果</span><strong>{{ selected_member_context.reversible_task_count }}</strong></div>
+                <div><span class="muted-text">流程进度</span><strong>{{ selected_member_context.completed_stage_count }}/{{ selected_member_context.total_stage_count }}</strong></div>
+                <div><span class="muted-text">当前节点</span><strong>{{ selected_member_context.current_node_name }}</strong></div>
+            </div>
+
+            <div class="section-header section-spaced">
+                <h3>决策摘要</h3>
+            </div>
+            <div class="detail-grid">
+                <div><span class="muted-text">当前节点历史任务数</span><strong>{{ selected_stage_task_count }}</strong></div>
+                <div><span class="muted-text">最近一次处理动作</span><strong>{% if selected_latest_processed_action %}{{ selected_latest_processed_action.get_action_display }}{% else %}暂无{% endif %}</strong></div>
+                <div><span class="muted-text">最近处理时间</span><strong>{% if selected_latest_processed_action %}{{ selected_latest_processed_action.created_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</strong></div>
+                <div><span class="muted-text">最近处理人</span><strong>{% if selected_latest_processed_action and selected_latest_processed_action.operator %}{{ selected_latest_processed_action.operator.real_name|default:selected_latest_processed_action.operator.username }}{% else %}--{% endif %}</strong></div>
+            </div>
+            <div class="note-box {% if selected_latest_reject_action %}note-box-primary{% endif %}">
+                {% if selected_latest_reject_action %}
+                最近一次驳回原因：{{ selected_latest_reject_action.comment }}
+                {% else %}
+                当前节点暂无历史驳回记录。
+                {% endif %}
+            </div>
+
+            <div class="section-header section-spaced">
+                <h3>材料核对</h3>
+                {% if selected_all_ready %}
+                <span class="pill pill-success">材料齐备</span>
+                {% else %}
+                <span class="pill pill-warning">仍需人工确认</span>
+                {% endif %}
+            </div>
+            <div class="stack-list">
+                {% for item in selected_material_items %}
+                <div class="stack-item">
+                    <div>
+                        <strong>{{ item.material_type.name }}</strong>
+                        <div class="muted-text">
+                            {% if item.submission %}
+                            上传人：{{ item.submission.submitted_by.real_name|default:item.submission.submitted_by.username|default:"学生" }}
+                            {% else %}
+                            尚未提交
+                            {% endif %}
+                        </div>
+                        <div class="muted-text">
+                            {% if item.requirement.is_required %}必需材料{% else %}选填材料{% endif %}
+                            {% if item.requirement.note %} | {{ item.requirement.note }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="status-column">
+                        {% if item.submission %}
+                        <span class="pill pill-success">v{{ item.submission.version }}</span>
+                        <div class="muted-text">{{ item.submission.submitted_at|date:"Y-m-d H:i" }}</div>
+                        <a href="{{ item.submission.file.url }}" target="_blank" rel="noopener noreferrer" class="text-link">下载材料</a>
+                        {% else %}
+                        <span class="pill pill-warning">缺失</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="section-header section-spaced">
+                <h3>审批处理</h3>
+            </div>
+            {% if selected_task.status == 'pending' %}
+            <div class="note-box note-box-primary">当前处理对象已固定在右侧详情区。确认材料、链路和学生说明后，可直接提交结果，无需跳转到成员详情页。</div>
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="task_id" value="{{ selected_task.id }}">
+                <input type="hidden" name="redirect_to" value="{{ current_page_url }}">
+                {{ decision_form.non_field_errors }}
+                <div class="form-row">
+                    <label for="{{ decision_form.action.id_for_label }}">处理结果</label>
+                    {{ decision_form.action }}
+                </div>
+                <div class="form-row">
+                    <label for="{{ decision_form.comment.id_for_label }}">审批意见</label>
+                    {{ decision_form.comment }}
+                    {{ decision_form.comment.errors }}
+                </div>
+                <button type="submit" class="btn btn-primary">提交审批结果</button>
+            </form>
+            {% else %}
+            <div class="note-box">当前结果已处理。撤回时必须填写说明，且仅原审批人或学院领导可撤回。</div>
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="operation" value="withdraw">
+                <input type="hidden" name="task_id" value="{{ selected_task.id }}">
+                <input type="hidden" name="redirect_to" value="{{ current_page_url }}">
+                <div class="form-row">
+                    <label for="withdraw-comment">撤回说明（必填）</label>
+                    <textarea id="withdraw-comment" name="withdraw_comment" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">撤回当前审批结果</button>
+            </form>
+            {% endif %}
+
+            <div class="section-header section-spaced">
+                <h3>当前节点审批链路</h3>
+            </div>
+            {% if selected_task_chain %}
+            <div class="stack-list">
+                {% for task_entry in selected_task_chain %}
+                <div class="history-flow-card {% if task_entry.task.status == 'withdrawn' %}history-flow-withdrawn{% endif %}">
+                    <div class="section-header">
+                        <h4>任务 #{{ task_entry.task.id }}</h4>
+                        <span class="pill {% if task_entry.task.status == 'approved' %}pill-success{% elif task_entry.task.status == 'rejected' or task_entry.task.status == 'withdrawn' %}pill-warning{% else %}pill-primary{% endif %}">
+                            {{ task_entry.task.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="timeline-meta">
+                        <span>创建：{{ task_entry.task.created_at|date:"Y-m-d H:i" }}</span>
+                        <span>处理：{% if task_entry.task.processed_at %}{{ task_entry.task.processed_at|date:"Y-m-d H:i" }}{% else %}--{% endif %}</span>
+                        <span>审批人：{% if task_entry.task.assignee %}{{ task_entry.task.assignee.real_name|default:task_entry.task.assignee.username }}{% else %}待分配{% endif %}</span>
+                    </div>
+                    {% if task_entry.withdraw_action %}
+                    <div class="note-box">
+                        已撤回。撤回时间：{{ task_entry.withdraw_action.created_at|date:"Y-m-d H:i" }}。
+                        撤回人：{% if task_entry.withdraw_action.operator %}{{ task_entry.withdraw_action.operator.real_name|default:task_entry.withdraw_action.operator.username }}{% else %}系统{% endif %}。
+                        {% if task_entry.withdraw_action.comment %}
+                        说明：{{ task_entry.withdraw_action.comment }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if task_entry.reopen_action %}
+                    <div class="note-box note-box-primary">
+                        撤回后状态：已重新打开审核，当前节点回到待审批。时间：{{ task_entry.reopen_action.created_at|date:"Y-m-d H:i" }}。
+                        {% if task_entry.reopen_action.comment %}
+                        说明：{{ task_entry.reopen_action.comment }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="stack-list compact-stack">
+                        {% for action in task_entry.actions %}
+                        <div class="stack-item">
+                            <div>
+                                <strong>{{ action.get_action_display }}</strong>
+                                <div class="muted-text">
+                                    操作人：{% if action.operator %}{{ action.operator.real_name|default:action.operator.username }}{% else %}系统{% endif %}
+                                </div>
+                                {% if action.comment %}
+                                <div class="muted-text">{{ action.comment }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="status-column">
+                                <div class="muted-text">{{ action.created_at|date:"Y-m-d H:i" }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-panel compact">
+                <p>当前节点还没有形成完整审批链路。</p>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="empty-panel">
+                <h3>请选择左侧任务</h3>
+                <p>当前没有待审批任务，或尚未选中具体任务。</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
