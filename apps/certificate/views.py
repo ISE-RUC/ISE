@@ -634,7 +634,7 @@ class CreateView(LoginRequiredMixin, TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        user = request.user
+        user = request.user if request.user.is_authenticated else ensure_demo_user()
         selected_type = request.POST.get("certificate_type", "party-member")
         purpose = request.POST.get("purpose", "").strip()
         attachment_note = request.POST.get("attachment_note", "").strip()
