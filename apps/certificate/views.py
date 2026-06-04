@@ -20,6 +20,8 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from apps.users.models import User
+
 from .models import CertificateLog, CertificateMaterial, CertificateRequest
 
 
@@ -121,6 +123,24 @@ def build_reference_no():
     today = timezone.localtime().strftime("%Y%m%d")
     count = CertificateRequest.objects.filter(reference_no__startswith=f"CERT-{today}").count() + 1
     return f"CERT-{today}-{count:04d}"
+
+
+def ensure_demo_user():
+    user, created = User.objects.get_or_create(
+        username="certificate_demo_student",
+        defaults={
+            "real_name": "演示学生",
+            "student_id": "2026001002",
+            "grade": "2026",
+            "major": "信息系统工程",
+            "email": "certificate-demo@example.com",
+            "role": User.ROLE_STUDENT,
+        },
+    )
+    if created:
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+    return user
 
 
 def add_log(request_obj, action, detail, operator):
