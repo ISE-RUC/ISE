@@ -18,22 +18,13 @@
                     <div class="small">申请人</div>
                     <div class="role">{{ student_profile.name }}</div>
                 </div>
-                <a href="{% url 'profile:index' %}" class="btn">修改个人信息</a>
+                <a href="/" class="btn">返回首页</a>
                 <a href="{% url 'certificate:index' %}" class="btn">返回申请列表</a>
             </div>
         </div>
 
         <form class="certificate-form" method="post" data-api-form data-api-url="/api/certificates/">
             {% csrf_token %}
-
-            {% if not student_profile.is_complete %}
-            <div class="certificate-section">
-                <div class="notice-item">
-                    <strong>当前账号未绑定学号，暂不能提交证明申请。</strong>
-                    <p>请先补全学号。姓名、专业等字段可暂时留空，后续由管理员导入或补全。</p>
-                </div>
-            </div>
-            {% endif %}
 
             <div class="certificate-section">
                 <div class="card-head">
@@ -94,7 +85,6 @@
             <div class="certificate-section">
                 <div class="card-head">
                     <h2>个人信息展示</h2>
-                    <a class="btn" href="{% url 'profile:index' %}">修改个人信息</a>
                     <button class="btn" type="button" id="reopenProfileModal">重新查看信息卡</button>
                 </div>
                 <div class="certificate-profile-grid">
@@ -160,7 +150,7 @@
             </div>
 
             <div class="certificate-submit-row">
-                <button class="btn btn-primary" type="submit" {% if not student_profile.is_complete %}disabled{% endif %}>提交申请</button>
+                <button class="btn btn-primary" type="submit">提交申请</button>
                 <a href="{% url 'certificate:index' %}" class="btn">取消并返回</a>
             </div>
         </form>
@@ -218,9 +208,7 @@
             </div>
         </div>
         <div class="certificate-modal-actions">
-            <button class="btn btn-primary" type="button" data-close-modal="profileModal">
-                {% if student_profile.is_complete %}信息无误，开始填写{% else %}我知道了{% endif %}
-            </button>
+            <button class="btn btn-primary" type="button" data-close-modal="profileModal">信息无误，开始填写</button>
         </div>
     </div>
 </div>

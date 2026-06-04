@@ -15,27 +15,15 @@ class ProfilePageTests(TestCase):
         )
 
     def test_profile_requires_login(self):
-        response = self.client.get(reverse("profile:index"))
+        response = self.client.get(reverse("profile:select"))
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/users/login/", response["Location"])
 
-    def test_profile_updates_current_user_info(self):
+    def test_student_profile_shows_current_user(self):
         self.client.force_login(self.user)
 
-        response = self.client.post(
-            reverse("profile:index"),
-            {
-                "real_name": "新姓名",
-                "student_id": "2026003002",
-                "grade": "2026",
-                "major": "信息系统工程",
-                "email": "student@example.com",
-            },
-        )
+        response = self.client.get(reverse("profile:student"))
 
-        self.assertEqual(response.status_code, 302)
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.real_name, "新姓名")
-        self.assertEqual(self.user.student_id, "2026003002")
-        self.assertEqual(self.user.major, "信息系统工程")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["student"], self.user)

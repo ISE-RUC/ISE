@@ -120,19 +120,12 @@ def _normalize_date(value, field_name):
     if value in (None, ""):
         return None
     if isinstance(value, datetime):
-        parsed = value.date()
-        if parsed.year <= 1:
-            return None
-        return parsed
+        return value.date()
     if isinstance(value, date):
-        if value.year <= 1:
-            return None
         return value
     parsed = parse_date(str(value).strip())
     if parsed is None:
         raise ValidationError(f"{field_name} 日期格式无效，需为 YYYY-MM-DD。")
-    if parsed.year <= 1:
-        return None
     return parsed
 
 
@@ -145,8 +138,6 @@ def _normalize_datetime(value, field_name):
         dt = parse_datetime(str(value).strip())
         if dt is None:
             raise ValidationError(f"{field_name} 时间格式无效，需为 YYYY-MM-DD HH:MM[:SS]。")
-    if dt.year <= 1:
-        return None
     if timezone.is_naive(dt):
         dt = timezone.make_aware(dt, timezone.get_current_timezone())
     return dt

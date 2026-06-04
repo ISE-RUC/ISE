@@ -148,8 +148,9 @@ class PartyWorkflowTestCase(TestCase):
     def test_party_index_redirects_anonymous_entry_links_to_login(self):
         response = self.client.get("/party/")
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/users/login/?next=/party/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/users/login/?next=/party/student/")
+        self.assertContains(response, "/users/login/?next=/party/admin/")
 
     def test_login_redirects_to_requested_party_page(self):
         response = self.client.get("/users/login/?next=/party/student/timeline/")

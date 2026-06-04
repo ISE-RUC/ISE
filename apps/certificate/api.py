@@ -1,4 +1,3 @@
-from django.core.exceptions import ValidationError
 from django.utils import timezone
 from ninja import Router, Schema
 
@@ -10,8 +9,7 @@ from .views import (
     build_request_rows,
     build_timeline,
     create_request,
-    get_certificate_student_record,
-    get_certificate_user,
+    ensure_demo_user,
     get_request_or_404,
     get_student_profile,
     get_status_payload,
@@ -90,14 +88,6 @@ def _serialize_request_detail(request, request_obj):
     }
 
 
-def _current_student_or_error(request):
-    user = get_certificate_user(request)
-    if user is None:
-        return None, error(msg="请先登录后再使用证明申请功能。", code=401)
-    student = get_certificate_student_record(user)
-    return student, None
-
-
 @router.get("/types")
 def list_certificate_types(request):
     data = [{"id": key, **value} for key, value in CERTIFICATE_OPTIONS.items()]
@@ -106,9 +96,7 @@ def list_certificate_types(request):
 
 @router.get("/")
 def list_certificates(request):
-    student, auth_error = _current_student_or_error(request)
-    if auth_error:
-        return auth_error
+    student = ensure_demo_user()
     rows = []
     for row in build_request_rows(student):
         item = {**row}
@@ -127,18 +115,13 @@ def list_certificates(request):
 
 @router.post("/")
 def create_certificate(request, payload: CertificateSubmitIn):
-    student, auth_error = _current_student_or_error(request)
-    if auth_error:
-        return auth_error
-    try:
-        request_obj, ok = create_request(
-            student,
-            payload.certificate_type,
-            payload.purpose.strip(),
-            payload.attachment_note.strip(),
-        )
-    except ValidationError as exc:
-        return error(msg=exc.messages[0], code=400)
+    student = ensure_demo_user()
+    request_obj, ok = create_request(
+        student,
+        payload.certificate_type,
+        payload.purpose.strip(),
+        payload.attachment_note.strip(),
+    )
     data = {
         "id": request_obj.id,
         "detail_url": _detail_url(request, request_obj),
@@ -152,18 +135,14 @@ def create_certificate(request, payload: CertificateSubmitIn):
 
 @router.get("/{request_id}")
 def get_certificate(request, request_id: int):
-    student, auth_error = _current_student_or_error(request)
-    if auth_error:
-        return auth_error
+    student = ensure_demo_user()
     request_obj = get_request_or_404(student, request_id)
     return success(data={"request": _serialize_request_detail(request, request_obj)})
 
 
 @router.post("/{request_id}/resubmit")
 def resubmit_certificate(request, request_id: int, payload: CertificateSubmitIn):
-    student, auth_error = _current_student_or_error(request)
-    if auth_error:
-        return auth_error
+    student = ensure_demo_user()
     request_obj = get_request_or_404(student, request_id)
     if request_obj.status not in {
         CertificateRequest.STATUS_MATERIAL_REJECTED,
@@ -172,15 +151,12 @@ def resubmit_certificate(request, request_id: int, payload: CertificateSubmitIn)
     }:
         return error(msg="当前状态下不能重新提交。", code=400)
 
-    try:
-        ok = update_request_for_resubmit(
-            request_obj,
-            payload.certificate_type,
-            payload.purpose.strip(),
-            payload.attachment_note.strip(),
-        )
-    except ValidationError as exc:
-        return error(msg=exc.messages[0], code=400)
+    ok = update_request_for_resubmit(
+        request_obj,
+        payload.certificate_type,
+        payload.purpose.strip(),
+        payload.attachment_note.strip(),
+    )
     request_obj.refresh_from_db()
     data = {
         "id": request_obj.id,
@@ -195,9 +171,7 @@ def resubmit_certificate(request, request_id: int, payload: CertificateSubmitIn)
 
 @router.post("/{request_id}/revoke")
 def revoke_certificate(request, request_id: int):
-    student, auth_error = _current_student_or_error(request)
-    if auth_error:
-        return auth_error
+    student = ensure_demo_user()
     request_obj = get_request_or_404(student, request_id)
     if request_obj.status != CertificateRequest.STATUS_APPROVED_OBSERVING:
         return error(msg="当前状态下不能撤回。", code=400)

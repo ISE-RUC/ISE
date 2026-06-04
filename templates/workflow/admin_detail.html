@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}流程详情 - 管理端{% endblock %}
+{% block content %}
+<section style="max-width:1000px;margin:0 auto;padding:2rem;">
+    {% if no_permission %}
+    <div class="card">
+        <div style="text-align:center;padding:3rem;">
+            <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+            <h2 style="margin-bottom:1rem;">您没有权限</h2>
+            <p style="color:var(--muted);margin-bottom:2rem;">只有管理老师和学院领导可以访问管理端</p>
+            <a href="{% url 'workflow:select' %}" class="btn">返回选择</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="hero-head">
+            <div>
+                <h1 class="hero-title">{{ instance.title }}</h1>
+                <p class="hero-desc">流程详情与审批</p>
+            </div>
+            <div class="role-tag">
+                <div class="small">状态</div>
+                <div class="role">
+                    <span class="pill {% if instance.status == 'completed' %}pill-success{% elif instance.status == 'rejected' %}pill-warning{% else %}pill-primary{% endif %}">
+                        {{ instance.get_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-grid cert-summary-grid">
+            <div class="action-item" style="cursor:default;">
+                <div class="icon-wrap">📋</div>
+                <h3>流程模板</h3>
+                <p>{{ instance.template.name }}</p>
+            </div>
+            <div class="action-item" style="cursor:default;">
+                <div class="icon-wrap">⏰</div>
+                <h3>倒计时</h3>
+                <p>{% if countdown %}{{ countdown }}{% else %}无截止时间{% endif %}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if instance.status == 'in_progress' %}
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>审批当前步骤</h2>
+            <span class="pill pill-primary">{{ instance.current_step.name }}</span>
+        </div>
+        <form method="post" action="{% url 'workflow:review_step' instance.id %}">
+            {% csrf_token %}
+            <div style="margin-bottom:16px;">
+                <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">审批意见</label>
+                <textarea name="comment" rows="3" placeholder="请输入审批意见（可选）"
+                    style="width:100%;border:1px solid var(--line);border-radius:16px;padding:12px 16px;background:#fff;font-family:inherit;"></textarea>
+            </div>
+            <div class="cert-button-row">
+                <button type="submit" name="action" value="approve" class="btn btn-primary">通过</button>
+                <button type="submit" name="action" value="reject" class="btn" style="color:#ef4444;border-color:#fecaca;">驳回</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>流程时间轴</h2>
+            <span class="pill pill-primary">{{ step_records|length }} 个步骤</span>
+        </div>
+        <div style="position:relative;padding-left:40px;">
+            {% for record in step_records %}
+            <div style="position:relative;margin-bottom:24px;padding:16px;background:{% if record.step == instance.current_step %}#f0f9ff{% else %}#f8fafc{% endif %};border-radius:12px;border:1px solid {% if record.step == instance.current_step %}#bae6fd{% else %}var(--line){% endif %};">
+                <div style="position:absolute;left:-40px;top:20px;width:24px;height:24px;border-radius:50%;background:{% if record.status == 'approved' %}#22c55e{% elif record.status == 'rejected' %}#ef4444{% elif record.step == instance.current_step %}#3b82f6{% else %}#e2e8f0{% endif %};display:flex;align-items:center;justify-content:center;">
+                    {% if record.status == 'approved' %}
+                    <span style="color:white;font-size:12px;">✓</span>
+                    {% elif record.status == 'rejected' %}
+                    <span style="color:white;font-size:12px;">✕</span>
+                    {% elif record.step == instance.current_step %}
+                    <span style="color:white;font-size:12px;">●</span>
+                    {% else %}
+                    <span style="color:#94a3b8;font-size:12px;">{{ forloop.counter }}</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <h3 style="margin-bottom:8px;font-size:16px;">{{ record.step.name }}</h3>
+                    <p style="color:var(--muted);font-size:13px;margin-bottom:8px;">{{ record.step.description|default:"" }}</p>
+                    <div style="display:flex;gap:16px;font-size:13px;color:var(--muted);">
+                        <span>状态：
+                            <span class="pill {% if record.status == 'approved' %}pill-success{% elif record.status == 'rejected' %}pill-warning{% else %}pill-primary{% endif %}">
+                                {{ record.get_status_display }}
+                            </span>
+                        </span>
+                        {% if record.reviewer %}
+                        <span>审批人：{{ record.reviewer.real_name|default:record.reviewer.username }}</span>
+                        {% endif %}
+                        {% if record.reviewed_at %}
+                        <span>审批时间：{{ record.reviewed_at|date:"Y-m-d H:i" }}</span>
+                        {% endif %}
+                    </div>
+                    {% if record.comment %}
+                    <div style="margin-top:8px;padding:8px 12px;background:#fff;border-radius:8px;border:1px solid var(--line);">
+                        <span style="font-size:13px;color:var(--muted);">审批意见：</span>
+                        <span style="font-size:13px;">{{ record.comment }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align:center;padding:24px;color:var(--muted);">暂无步骤记录</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>流程信息</h2>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+                <span style="font-size:13px;color:var(--muted);">发起人：</span>
+                <span>{{ instance.user.real_name|default:instance.user.username }}</span>
+            </div>
+            <div>
+                <span style="font-size:13px;color:var(--muted);">创建时间：</span>
+                <span>{{ instance.created_at|date:"Y-m-d H:i" }}</span>
+            </div>
+            <div>
+                <span style="font-size:13px;color:var(--muted);">当前步骤：</span>
+                <span>{% if instance.current_step %}{{ instance.current_step.name }}{% else %}-{% endif %}</span>
+            </div>
+            <div>
+                <span style="font-size:13px;color:var(--muted);">截止时间：</span>
+                <span>{% if instance.deadline %}{{ instance.deadline|date:"Y-m-d H:i" }}{% else %}无{% endif %}</span>
+            </div>
+        </div>
+        {% if instance.notes %}
+        <div style="margin-top:16px;">
+            <span style="font-size:13px;color:var(--muted);">备注：</span>
+            <p>{{ instance.notes }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="margin-top:24px;text-align:center;">
+        <a href="{% url 'workflow:admin' %}" class="btn">返回列表</a>
+        <a href="{% url 'users:home' %}" class="btn" style="margin-left:12px;">返回首页</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -2,283 +2,92 @@
 {% block title %}流程规则{% endblock %}
 {% block content %}
 <section class="card">
-    {% include "party/_page_nav.html" %}
-    <div class="card-head">
-        <div>
-            <h2>流程规则配置</h2>
-            <p class="hero-desc">维护节点定义、材料类型和节点材料要求。当前配置会直接影响学生端材料提交和管理端审批流转。</p>
-        </div>
-        <span class="pill pill-primary">管理视图</span>
-    </div>
-    <div class="action-bar section-spaced">
-        <a href="{% url 'party:party_admin:dashboard' %}" class="btn btn-primary">返回管理端总览</a>
-        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
-    </div>
-
-    <div class="tab-bar section-spaced">
-        {% for value, label in track_choices %}
-        <a href="{% url 'party:party_admin:rules' %}?track_type={{ value }}{% if selected_stage and selected_stage.track_type == value %}&stage_id={{ selected_stage.id }}{% endif %}"
-           class="tab-link {% if track_type == value %}tab-link-active{% endif %}">
-            {{ label }}
-        </a>
-        {% endfor %}
-    </div>
-
-    <div class="dashboard-summary rules-summary section-spaced">
-        <div class="summary-item">
-            <div class="summary-label">当前流程类型</div>
-            <div class="summary-value">
-                {% for value, label in track_choices %}
-                {% if value == track_type %}{{ label }}{% endif %}
-                {% endfor %}
+    <div class="party-page-shell">
+        <div class="party-hero">
+            <div class="party-hero-main">
+                <h1 class="hero-title party-hero-title">流程规则配置</h1>
+                <p class="hero-desc">统一维护节点定义、材料类型和节点材料要求。这里的配置会直接影响学生端材料提交和管理端审批流转。</p>
+                <div class="party-inline-meta">
+                    <span class="party-inline-chip">支持按党 / 团流程切换</span>
+                    <span class="party-inline-chip">左侧看清单，右侧直接编辑</span>
+                    <span class="party-inline-chip">材料要求与节点联动展示</span>
+                </div>
+            </div>
+            <div class="party-hero-side">
+                <span class="pill pill-primary">流程配置</span>
+                <div class="action-bar">
+                    <a href="{% url 'party:party_admin:dashboard' %}" class="btn btn-primary">返回管理总览</a>
+                    <a href="{% url 'party:index' %}" class="btn party-ghost-btn">返回模块入口</a>
+                </div>
             </div>
         </div>
-        <div class="summary-item">
-            <div class="summary-label">节点定义数</div>
-            <div class="summary-value">{{ stage_definitions|length }}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">材料类型数</div>
-            <div class="summary-value">{{ material_types|length }}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">当前节点要求数</div>
-            <div class="summary-value">{{ requirements|length }}</div>
-        </div>
-    </div>
 
-    <div class="rules-grid section-spaced">
-        <div class="card card-subtle">
-            <div class="section-header">
-                <h3>节点定义</h3>
-                <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}" class="text-link">新建节点</a>
+        <div class="tab-bar">
+            {% for value, label in track_choices %}
+            <a href="{% url 'party:party_admin:rules' %}?track_type={{ value }}{% if selected_stage and selected_stage.track_type == value %}&stage_id={{ selected_stage.id }}{% endif %}"
+               class="tab-link {% if track_type == value %}tab-link-active{% endif %}">
+                {{ label }}
+            </a>
+            {% endfor %}
+        </div>
+
+        <div class="dashboard-summary party-summary-grid">
+            <div class="summary-item summary-emphasis">
+                <div class="summary-label">当前流程类型</div>
+                <div class="summary-value">
+                    {% for value, label in track_choices %}
+                    {% if value == track_type %}{{ label }}{% endif %}
+                    {% endfor %}
+                </div>
             </div>
-            {% if stage_definitions %}
-            <div class="stack-list">
-                {% for stage in stage_definitions %}
-                <div class="stack-item rules-item {% if selected_stage and selected_stage.id == stage.id %}stack-active{% endif %}">
+            <div class="summary-item">
+                <div class="summary-label">节点定义数</div>
+                <div class="summary-value">{{ stage_definitions|length }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">材料类型数</div>
+                <div class="summary-value">{{ material_types|length }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">当前节点要求数</div>
+                <div class="summary-value">{{ requirements|length }}</div>
+            </div>
+        </div>
+
+        <div class="rules-grid">
+            <div class="card card-subtle">
+                <div class="section-header">
                     <div>
-                        <div class="rules-title-row">
-                            <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ stage.id }}" class="text-link">
-                                {{ stage.name }}
-                            </a>
-                            <span class="pill {% if stage.is_active %}pill-success{% else %}pill-warning{% endif %}">
-                                {% if stage.is_active %}已启用{% else %}已停用{% endif %}
-                            </span>
-                        </div>
-                        <div class="muted-text">编码：{{ stage.code }} | 顺序：{{ stage.order }} | 对应阶段：{{ stage.get_stage_display }}</div>
-                        <div class="muted-text">审批角色：{{ stage.get_target_role_for_approval_display }} | 最短停留：{{ stage.min_duration_days }} 天</div>
-                        <div class="muted-text">材料要求：{{ stage.requirement_count }} 项 | 已有流程实例：{{ stage.instance_count }} 个</div>
+                        <h3>节点定义</h3>
+                        <div class="muted-text">先明确流程节点、审批角色、停留时长等基础结构，再配置材料和要求。</div>
                     </div>
-                    <div class="rules-actions">
-                        <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ stage.id }}&stage_edit={{ stage.id }}" class="btn">编辑</a>
-                        <form method="post">
-                            {% csrf_token %}
-                            <input type="hidden" name="operation" value="toggle_stage">
-                            <input type="hidden" name="stage_id" value="{{ stage.id }}">
-                            <button type="submit" class="btn btn-primary">
-                                {% if stage.is_active %}停用{% else %}启用{% endif %}
-                            </button>
-                        </form>
-                    </div>
+                    <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}" class="text-link">新建节点</a>
                 </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="empty-panel compact">
-                <p>当前流程类型还没有节点定义，请先创建第一个节点。</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="card card-subtle">
-            <div class="section-header">
-                <h3>{% if stage_form_instance %}编辑节点定义{% else %}新建节点定义{% endif %}</h3>
-                {% if stage_form_instance %}
-                <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ stage_form_instance.id }}" class="text-link">取消编辑</a>
-                {% endif %}
-            </div>
-            <form method="post" class="inline-form">
-                {% csrf_token %}
-                <input type="hidden" name="operation" value="save_stage">
-                <input type="hidden" name="stage_id" value="{% if stage_form_instance %}{{ stage_form_instance.id }}{% endif %}">
-                {{ stage_form.non_field_errors }}
-                <div class="form-row">
-                    <label for="{{ stage_form.code.id_for_label }}">节点编码</label>
-                    {{ stage_form.code }}
-                    {{ stage_form.code.errors }}
-                </div>
-                <div class="form-row">
-                    <label for="{{ stage_form.name.id_for_label }}">节点名称</label>
-                    {{ stage_form.name }}
-                    {{ stage_form.name.errors }}
-                </div>
-                <div class="form-row">
-                    <label for="{{ stage_form.track_type.id_for_label }}">流程类型</label>
-                    {{ stage_form.track_type }}
-                    {{ stage_form.track_type.errors }}
-                </div>
-                <div class="form-row">
-                    <label for="{{ stage_form.stage.id_for_label }}">对应阶段</label>
-                    {{ stage_form.stage }}
-                    {{ stage_form.stage.errors }}
-                </div>
-                <div class="rules-form-grid">
-                    <div class="form-row">
-                        <label for="{{ stage_form.order.id_for_label }}">排序</label>
-                        {{ stage_form.order }}
-                        {{ stage_form.order.errors }}
-                    </div>
-                    <div class="form-row">
-                        <label for="{{ stage_form.min_duration_days.id_for_label }}">最短停留天数</label>
-                        {{ stage_form.min_duration_days }}
-                        {{ stage_form.min_duration_days.errors }}
-                    </div>
-                </div>
-                <div class="form-row">
-                    <label for="{{ stage_form.target_role_for_approval.id_for_label }}">审批角色</label>
-                    {{ stage_form.target_role_for_approval }}
-                    {{ stage_form.target_role_for_approval.errors }}
-                </div>
-                <div class="rules-check-row">
-                    <label class="check-label">{{ stage_form.requires_training }} 需要培训合格</label>
-                    <label class="check-label">{{ stage_form.is_active }} 启用该节点</label>
-                </div>
-                <div class="form-row">
-                    <label for="{{ stage_form.description.id_for_label }}">节点说明</label>
-                    {{ stage_form.description }}
-                    {{ stage_form.description.errors }}
-                </div>
-                <button type="submit" class="btn btn-primary">保存节点定义</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="rules-grid section-spaced">
-        <div class="card card-subtle">
-            <div class="section-header">
-                <h3>材料类型</h3>
-                <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}{% if selected_stage %}&stage_id={{ selected_stage.id }}{% endif %}" class="text-link">新建材料</a>
-            </div>
-            {% if material_types %}
-            <div class="stack-list">
-                {% for material in material_types %}
-                <div class="stack-item rules-item">
-                    <div>
-                        <div class="rules-title-row">
-                            <strong>{{ material.name }}</strong>
-                            <span class="pill {% if material.is_active %}pill-success{% else %}pill-warning{% endif %}">
-                                {% if material.is_active %}已启用{% else %}已停用{% endif %}
-                            </span>
-                        </div>
-                        <div class="muted-text">编码：{{ material.code }} | 大小上限：{{ material.max_size_mb }}MB</div>
-                        <div class="muted-text">允许后缀：{{ material.allowed_extensions|default:"不限" }}</div>
-                        <div class="muted-text">被节点引用：{{ material.requirement_count }} 次</div>
-                    </div>
-                    <div class="rules-actions">
-                        <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}{% if selected_stage %}&stage_id={{ selected_stage.id }}{% endif %}&material_edit={{ material.id }}" class="btn">编辑</a>
-                        <form method="post">
-                            {% csrf_token %}
-                            <input type="hidden" name="operation" value="toggle_material">
-                            <input type="hidden" name="material_id" value="{{ material.id }}">
-                            <button type="submit" class="btn btn-primary">
-                                {% if material.is_active %}停用{% else %}启用{% endif %}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="empty-panel compact">
-                <p>当前还没有材料类型定义。</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="card card-subtle">
-            <div class="section-header">
-                <h3>{% if material_form_instance %}编辑材料类型{% else %}新建材料类型{% endif %}</h3>
-                {% if material_form_instance %}
-                <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}{% if selected_stage %}&stage_id={{ selected_stage.id }}{% endif %}" class="text-link">取消编辑</a>
-                {% endif %}
-            </div>
-            <form method="post" class="inline-form">
-                {% csrf_token %}
-                <input type="hidden" name="operation" value="save_material">
-                <input type="hidden" name="material_id" value="{% if material_form_instance %}{{ material_form_instance.id }}{% endif %}">
-                <input type="hidden" name="track_type" value="{{ track_type }}">
-                <input type="hidden" name="current_stage_id" value="{% if selected_stage %}{{ selected_stage.id }}{% endif %}">
-                {{ material_form.non_field_errors }}
-                <div class="form-row">
-                    <label for="{{ material_form.code.id_for_label }}">材料编码</label>
-                    {{ material_form.code }}
-                    {{ material_form.code.errors }}
-                </div>
-                <div class="form-row">
-                    <label for="{{ material_form.name.id_for_label }}">材料名称</label>
-                    {{ material_form.name }}
-                    {{ material_form.name.errors }}
-                </div>
-                <div class="form-row">
-                    <label for="{{ material_form.allowed_extensions.id_for_label }}">允许后缀</label>
-                    {{ material_form.allowed_extensions }}
-                    {{ material_form.allowed_extensions.errors }}
-                </div>
-                <div class="form-row">
-                    <label for="{{ material_form.max_size_mb.id_for_label }}">大小上限（MB）</label>
-                    {{ material_form.max_size_mb }}
-                    {{ material_form.max_size_mb.errors }}
-                </div>
-                <div class="rules-check-row">
-                    <label class="check-label">{{ material_form.is_active }} 启用该材料类型</label>
-                </div>
-                <div class="form-row">
-                    <label for="{{ material_form.description.id_for_label }}">说明</label>
-                    {{ material_form.description }}
-                    {{ material_form.description.errors }}
-                </div>
-                <button type="submit" class="btn btn-primary">保存材料类型</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="rules-grid section-spaced">
-        <div class="card card-subtle">
-            <div class="section-header">
-                <div>
-                    <h3>节点材料要求</h3>
-                    {% if selected_stage %}
-                    <div class="muted-text">当前节点：{{ selected_stage.name }}</div>
-                    {% endif %}
-                </div>
-                {% if selected_stage %}
-                <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ selected_stage.id }}" class="text-link">新增要求</a>
-                {% endif %}
-            </div>
-            {% if selected_stage %}
-                {% if requirements %}
+                {% if stage_definitions %}
                 <div class="stack-list">
-                    {% for requirement in requirements %}
-                    <div class="stack-item rules-item">
+                    {% for stage in stage_definitions %}
+                    <div class="stack-item rules-item {% if selected_stage and selected_stage.id == stage.id %}stack-active{% endif %}">
                         <div>
                             <div class="rules-title-row">
-                                <strong>{{ requirement.material_type.name }}</strong>
-                                <span class="pill {% if requirement.is_required %}pill-primary{% else %}pill-warning{% endif %}">
-                                    {% if requirement.is_required %}必需{% else %}选填{% endif %}
+                                <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ stage.id }}" class="text-link">
+                                    {{ stage.name }}
+                                </a>
+                                <span class="pill {% if stage.is_active %}pill-success{% else %}pill-warning{% endif %}">
+                                    {% if stage.is_active %}已启用{% else %}已停用{% endif %}
                                 </span>
                             </div>
-                            <div class="muted-text">顺序：{{ requirement.order }}</div>
-                            <div class="muted-text">说明：{{ requirement.note|default:"--" }}</div>
+                            <div class="muted-text">编码：{{ stage.code }} | 顺序：{{ stage.order }} | 对应阶段：{{ stage.get_stage_display }}</div>
+                            <div class="muted-text">审批角色：{{ stage.get_target_role_for_approval_display }} | 最短停留：{{ stage.min_duration_days }} 天</div>
+                            <div class="muted-text">材料要求：{{ stage.requirement_count }} 项 | 已有流程实例：{{ stage.instance_count }} 个</div>
                         </div>
                         <div class="rules-actions">
-                            <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ selected_stage.id }}&requirement_edit={{ requirement.id }}" class="btn">编辑</a>
+                            <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ stage.id }}&stage_edit={{ stage.id }}" class="btn">编辑</a>
                             <form method="post">
                                 {% csrf_token %}
-                                <input type="hidden" name="operation" value="toggle_requirement_required">
-                                <input type="hidden" name="requirement_id" value="{{ requirement.id }}">
+                                <input type="hidden" name="operation" value="toggle_stage">
+                                <input type="hidden" name="stage_id" value="{{ stage.id }}">
                                 <button type="submit" class="btn btn-primary">
-                                    改为{% if requirement.is_required %}选填{% else %}必需{% endif %}
+                                    {% if stage.is_active %}停用{% else %}启用{% endif %}
                                 </button>
                             </form>
                         </div>
@@ -287,57 +96,274 @@
                 </div>
                 {% else %}
                 <div class="empty-panel compact">
-                    <p>当前节点还没有材料要求，可以在右侧直接新增。</p>
+                    <p>当前流程类型还没有节点定义，请先创建第一个节点。</p>
                 </div>
                 {% endif %}
-            {% else %}
-            <div class="empty-panel compact">
-                <p>请先在左上区域选择一个节点，再配置材料要求。</p>
             </div>
-            {% endif %}
-        </div>
 
-        <div class="card card-subtle">
-            <div class="section-header">
-                <h3>{% if requirement_form_instance %}编辑节点材料要求{% else %}新增节点材料要求{% endif %}</h3>
-                {% if requirement_form_instance and selected_stage %}
-                <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ selected_stage.id }}" class="text-link">取消编辑</a>
-                {% endif %}
-            </div>
-            <form method="post" class="inline-form">
-                {% csrf_token %}
-                <input type="hidden" name="operation" value="save_requirement">
-                <input type="hidden" name="requirement_id" value="{% if requirement_form_instance %}{{ requirement_form_instance.id }}{% endif %}">
-                <input type="hidden" name="track_type" value="{{ track_type }}">
-                <input type="hidden" name="current_stage_id" value="{% if selected_stage %}{{ selected_stage.id }}{% endif %}">
-                {{ requirement_form.non_field_errors }}
-                <div class="form-row">
-                    <label for="{{ requirement_form.stage_definition.id_for_label }}">节点定义</label>
-                    {{ requirement_form.stage_definition }}
-                    {{ requirement_form.stage_definition.errors }}
+            <div class="card card-subtle">
+                <div class="section-header">
+                    <div>
+                        <h3>{% if stage_form_instance %}编辑节点定义{% else %}新建节点定义{% endif %}</h3>
+                        <div class="muted-text">右侧直接维护当前流程的节点基础配置，保存后会回到对应节点。</div>
+                    </div>
+                    {% if stage_form_instance %}
+                    <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ stage_form_instance.id }}" class="text-link">取消编辑</a>
+                    {% endif %}
                 </div>
-                <div class="form-row">
-                    <label for="{{ requirement_form.material_type.id_for_label }}">材料类型</label>
-                    {{ requirement_form.material_type }}
-                    {{ requirement_form.material_type.errors }}
-                </div>
-                <div class="rules-form-grid">
+                <form method="post" class="inline-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="operation" value="save_stage">
+                    <input type="hidden" name="stage_id" value="{% if stage_form_instance %}{{ stage_form_instance.id }}{% endif %}">
+                    {{ stage_form.non_field_errors }}
                     <div class="form-row">
-                        <label for="{{ requirement_form.order.id_for_label }}">排序</label>
-                        {{ requirement_form.order }}
-                        {{ requirement_form.order.errors }}
+                        <label for="{{ stage_form.code.id_for_label }}">节点编码</label>
+                        {{ stage_form.code }}
+                        {{ stage_form.code.errors }}
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ stage_form.name.id_for_label }}">节点名称</label>
+                        {{ stage_form.name }}
+                        {{ stage_form.name.errors }}
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ stage_form.track_type.id_for_label }}">流程类型</label>
+                        {{ stage_form.track_type }}
+                        {{ stage_form.track_type.errors }}
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ stage_form.stage.id_for_label }}">对应阶段</label>
+                        {{ stage_form.stage }}
+                        {{ stage_form.stage.errors }}
+                    </div>
+                    <div class="rules-form-grid">
+                        <div class="form-row">
+                            <label for="{{ stage_form.order.id_for_label }}">排序</label>
+                            {{ stage_form.order }}
+                            {{ stage_form.order.errors }}
+                        </div>
+                        <div class="form-row">
+                            <label for="{{ stage_form.min_duration_days.id_for_label }}">最短停留天数</label>
+                            {{ stage_form.min_duration_days }}
+                            {{ stage_form.min_duration_days.errors }}
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ stage_form.target_role_for_approval.id_for_label }}">审批角色</label>
+                        {{ stage_form.target_role_for_approval }}
+                        {{ stage_form.target_role_for_approval.errors }}
                     </div>
                     <div class="rules-check-row">
-                        <label class="check-label">{{ requirement_form.is_required }} 该材料为必需</label>
+                        <label class="check-label">{{ stage_form.requires_training }} 需要培训合格</label>
+                        <label class="check-label">{{ stage_form.is_active }} 启用该节点</label>
                     </div>
+                    <div class="form-row">
+                        <label for="{{ stage_form.description.id_for_label }}">节点说明</label>
+                        {{ stage_form.description }}
+                        {{ stage_form.description.errors }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存节点定义</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="rules-grid">
+            <div class="card card-subtle">
+                <div class="section-header">
+                    <div>
+                        <h3>材料类型</h3>
+                        <div class="muted-text">材料类型是所有节点要求复用的基础库，建议先规范名称、后缀和大小限制。</div>
+                    </div>
+                    <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}{% if selected_stage %}&stage_id={{ selected_stage.id }}{% endif %}" class="text-link">新建材料</a>
                 </div>
-                <div class="form-row">
-                    <label for="{{ requirement_form.note.id_for_label }}">提交说明</label>
-                    {{ requirement_form.note }}
-                    {{ requirement_form.note.errors }}
+                {% if material_types %}
+                <div class="stack-list">
+                    {% for material in material_types %}
+                    <div class="stack-item rules-item">
+                        <div>
+                            <div class="rules-title-row">
+                                <strong>{{ material.name }}</strong>
+                                <span class="pill {% if material.is_active %}pill-success{% else %}pill-warning{% endif %}">
+                                    {% if material.is_active %}已启用{% else %}已停用{% endif %}
+                                </span>
+                            </div>
+                            <div class="muted-text">编码：{{ material.code }} | 大小上限：{{ material.max_size_mb }} MB</div>
+                            <div class="muted-text">允许后缀：{{ material.allowed_extensions|default:"不限" }}</div>
+                            <div class="muted-text">被节点引用：{{ material.requirement_count }} 次</div>
+                        </div>
+                        <div class="rules-actions">
+                            <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}{% if selected_stage %}&stage_id={{ selected_stage.id }}{% endif %}&material_edit={{ material.id }}" class="btn">编辑</a>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="operation" value="toggle_material">
+                                <input type="hidden" name="material_id" value="{{ material.id }}">
+                                <button type="submit" class="btn btn-primary">
+                                    {% if material.is_active %}停用{% else %}启用{% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
-                <button type="submit" class="btn btn-primary">保存材料要求</button>
-            </form>
+                {% else %}
+                <div class="empty-panel compact">
+                    <p>当前还没有材料类型定义。</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card card-subtle">
+                <div class="section-header">
+                    <div>
+                        <h3>{% if material_form_instance %}编辑材料类型{% else %}新建材料类型{% endif %}</h3>
+                        <div class="muted-text">配置材料命名、允许格式和大小上限，供各节点要求直接复用。</div>
+                    </div>
+                    {% if material_form_instance %}
+                    <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}{% if selected_stage %}&stage_id={{ selected_stage.id }}{% endif %}" class="text-link">取消编辑</a>
+                    {% endif %}
+                </div>
+                <form method="post" class="inline-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="operation" value="save_material">
+                    <input type="hidden" name="material_id" value="{% if material_form_instance %}{{ material_form_instance.id }}{% endif %}">
+                    <input type="hidden" name="track_type" value="{{ track_type }}">
+                    <input type="hidden" name="current_stage_id" value="{% if selected_stage %}{{ selected_stage.id }}{% endif %}">
+                    {{ material_form.non_field_errors }}
+                    <div class="form-row">
+                        <label for="{{ material_form.code.id_for_label }}">材料编码</label>
+                        {{ material_form.code }}
+                        {{ material_form.code.errors }}
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ material_form.name.id_for_label }}">材料名称</label>
+                        {{ material_form.name }}
+                        {{ material_form.name.errors }}
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ material_form.allowed_extensions.id_for_label }}">允许后缀</label>
+                        {{ material_form.allowed_extensions }}
+                        {{ material_form.allowed_extensions.errors }}
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ material_form.max_size_mb.id_for_label }}">大小上限（MB）</label>
+                        {{ material_form.max_size_mb }}
+                        {{ material_form.max_size_mb.errors }}
+                    </div>
+                    <div class="rules-check-row">
+                        <label class="check-label">{{ material_form.is_active }} 启用该材料类型</label>
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ material_form.description.id_for_label }}">说明</label>
+                        {{ material_form.description }}
+                        {{ material_form.description.errors }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存材料类型</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="rules-grid">
+            <div class="card card-subtle">
+                <div class="section-header">
+                    <div>
+                        <h3>节点材料要求</h3>
+                        {% if selected_stage %}
+                        <div class="muted-text">当前节点：{{ selected_stage.name }}</div>
+                        {% else %}
+                        <div class="muted-text">请先选择一个节点，再配置材料要求。</div>
+                        {% endif %}
+                    </div>
+                    {% if selected_stage %}
+                    <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ selected_stage.id }}" class="text-link">新增要求</a>
+                    {% endif %}
+                </div>
+
+                {% if selected_stage %}
+                    {% if requirements %}
+                    <div class="stack-list">
+                        {% for requirement in requirements %}
+                        <div class="stack-item rules-item">
+                            <div>
+                                <div class="rules-title-row">
+                                    <strong>{{ requirement.material_type.name }}</strong>
+                                    <span class="pill {% if requirement.is_required %}pill-primary{% else %}pill-warning{% endif %}">
+                                        {% if requirement.is_required %}必需{% else %}选填{% endif %}
+                                    </span>
+                                </div>
+                                <div class="muted-text">顺序：{{ requirement.order }}</div>
+                                <div class="muted-text">说明：{{ requirement.note|default:"--" }}</div>
+                            </div>
+                            <div class="rules-actions">
+                                <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ selected_stage.id }}&requirement_edit={{ requirement.id }}" class="btn">编辑</a>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="operation" value="toggle_requirement_required">
+                                    <input type="hidden" name="requirement_id" value="{{ requirement.id }}">
+                                    <button type="submit" class="btn btn-primary">
+                                        改为{% if requirement.is_required %}选填{% else %}必需{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-panel compact">
+                        <p>当前节点还没有材料要求，可以在右侧直接新增。</p>
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div class="empty-panel compact">
+                    <p>请先在左侧选择一个节点，再配置材料要求。</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card card-subtle">
+                <div class="section-header">
+                    <div>
+                        <h3>{% if requirement_form_instance %}编辑节点材料要求{% else %}新增节点材料要求{% endif %}</h3>
+                        <div class="muted-text">为当前节点绑定材料类型，并配置顺序、必填属性和提交说明。</div>
+                    </div>
+                    {% if requirement_form_instance and selected_stage %}
+                    <a href="{% url 'party:party_admin:rules' %}?track_type={{ track_type }}&stage_id={{ selected_stage.id }}" class="text-link">取消编辑</a>
+                    {% endif %}
+                </div>
+                <form method="post" class="inline-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="operation" value="save_requirement">
+                    <input type="hidden" name="requirement_id" value="{% if requirement_form_instance %}{{ requirement_form_instance.id }}{% endif %}">
+                    <input type="hidden" name="track_type" value="{{ track_type }}">
+                    <input type="hidden" name="current_stage_id" value="{% if selected_stage %}{{ selected_stage.id }}{% endif %}">
+                    {{ requirement_form.non_field_errors }}
+                    <div class="form-row">
+                        <label for="{{ requirement_form.stage_definition.id_for_label }}">节点定义</label>
+                        {{ requirement_form.stage_definition }}
+                        {{ requirement_form.stage_definition.errors }}
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ requirement_form.material_type.id_for_label }}">材料类型</label>
+                        {{ requirement_form.material_type }}
+                        {{ requirement_form.material_type.errors }}
+                    </div>
+                    <div class="rules-form-grid">
+                        <div class="form-row">
+                            <label for="{{ requirement_form.order.id_for_label }}">排序</label>
+                            {{ requirement_form.order }}
+                            {{ requirement_form.order.errors }}
+                        </div>
+                        <div class="rules-check-row">
+                            <label class="check-label">{{ requirement_form.is_required }} 该材料为必需</label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label for="{{ requirement_form.note.id_for_label }}">提交说明</label>
+                        {{ requirement_form.note }}
+                        {{ requirement_form.note.errors }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存材料要求</button>
+                </form>
+            </div>
         </div>
     </div>
 </section>

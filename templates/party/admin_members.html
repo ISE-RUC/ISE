@@ -2,122 +2,130 @@
 {% block title %}成员列表{% endblock %}
 {% block content %}
 <section class="card">
-    {% include "party/_page_nav.html" %}
-    <div class="card-head">
-        <h2>成员列表</h2>
-        <span class="pill pill-primary">管理视图</span>
-    </div>
-    <div class="action-bar section-spaced">
-        <a href="{% url 'party:party_admin:dashboard' %}" class="btn btn-primary">返回管理端总览</a>
-        <a href="{% url 'party:index' %}" class="btn">返回党团模块入口</a>
-    </div>
-    <p class="hero-desc">当前展示最小闭环所需的成员进度总览，便于老师快速定位当前节点和待审批数量。</p>
-    <form method="get" class="filter-bar">
-        <div class="form-row">
-            <label for="member-query">关键词</label>
-            <input id="member-query" type="text" name="q" value="{{ current_filters.q }}" placeholder="姓名、学号、专业、年级">
+    <div class="party-page-shell">
+        <div class="party-hero">
+            <div class="party-hero-main">
+                <h1 class="hero-title party-hero-title">成员列表</h1>
+                <p class="hero-desc">集中查看学生党团档案、当前阶段、节点进度和待审批数量，方便老师快速定位需要跟进的成员。</p>
+            </div>
+            <div class="party-hero-side">
+                <span class="pill pill-primary">成员检索</span>
+                <div class="action-bar">
+                    <a href="{% url 'party:party_admin:dashboard' %}" class="btn btn-primary">返回管理总览</a>
+                    <a href="{% url 'party:index' %}" class="btn party-ghost-btn">返回模块入口</a>
+                </div>
+            </div>
         </div>
-        <div class="form-row">
-            <label for="member-grade">年级</label>
-            <select id="member-grade" name="grade">
-                <option value="">全部年级</option>
-                {% for grade in grade_choices %}
-                <option value="{{ grade }}" {% if current_filters.grade == grade %}selected{% endif %}>{{ grade }}</option>
-                {% endfor %}
-            </select>
+
+        <form method="get" class="filter-bar">
+            <div class="form-row">
+                <label for="member-query">关键词</label>
+                <input id="member-query" type="text" name="q" value="{{ current_filters.q }}" placeholder="姓名、学号、专业、年级">
+            </div>
+            <div class="form-row">
+                <label for="member-grade">年级</label>
+                <select id="member-grade" name="grade">
+                    <option value="">全部年级</option>
+                    {% for grade in grade_choices %}
+                    <option value="{{ grade }}" {% if current_filters.grade == grade %}selected{% endif %}>{{ grade }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="member-major">专业关键词</label>
+                <input id="member-major" type="text" name="major" value="{{ current_filters.major }}" placeholder="例如：软件工程">
+            </div>
+            <div class="form-row">
+                <label for="stage-filter">当前阶段</label>
+                <select id="stage-filter" name="stage">
+                    <option value="">全部阶段</option>
+                    {% for value, label in stage_choices %}
+                    <option value="{{ value }}" {% if current_filters.stage == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="task-status-filter">审批状态</label>
+                <select id="task-status-filter" name="task_status">
+                    <option value="">全部</option>
+                    <option value="pending" {% if current_filters.task_status == 'pending' %}selected{% endif %}>有待审批任务</option>
+                    <option value="none" {% if current_filters.task_status == 'none' %}selected{% endif %}>无待审批任务</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="member-sort">排序方式</label>
+                <select id="member-sort" name="sort">
+                    <option value="updated_desc" {% if current_filters.sort == 'updated_desc' %}selected{% endif %}>最近更新优先</option>
+                    <option value="updated_asc" {% if current_filters.sort == 'updated_asc' %}selected{% endif %}>最早更新优先</option>
+                    <option value="name_asc" {% if current_filters.sort == 'name_asc' %}selected{% endif %}>姓名升序</option>
+                    <option value="name_desc" {% if current_filters.sort == 'name_desc' %}selected{% endif %}>姓名降序</option>
+                    <option value="pending_desc" {% if current_filters.sort == 'pending_desc' %}selected{% endif %}>待审批任务多到少</option>
+                    <option value="pending_asc" {% if current_filters.sort == 'pending_asc' %}selected{% endif %}>待审批任务少到多</option>
+                    <option value="completed_desc" {% if current_filters.sort == 'completed_desc' %}selected{% endif %}>已完成节点多到少</option>
+                    <option value="completed_asc" {% if current_filters.sort == 'completed_asc' %}selected{% endif %}>已完成节点少到多</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">筛选</button>
+                <a href="{% url 'party:party_admin:members' %}" class="btn">重置</a>
+            </div>
+        </form>
+
+        {% if member_rows %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>学生</th>
+                        <th>学号</th>
+                        <th>当前阶段</th>
+                        <th>当前节点</th>
+                        <th>已完成节点</th>
+                        <th>待审批任务</th>
+                        <th>下一节点日期</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in member_rows %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'party:party_admin:member_detail' row.member.id %}?return_to={{ current_page_url|urlencode }}" class="text-link">
+                                {{ row.member.user.real_name|default:row.member.user.username }}
+                            </a>
+                        </td>
+                        <td>{{ row.member.user.student_id|default:"--" }}</td>
+                        <td>{{ row.member.get_current_stage_display }}</td>
+                        <td>{% if row.current_stage_instance %}{{ row.current_stage_instance.stage_definition.name }}{% else %}--{% endif %}</td>
+                        <td>{{ row.completed_count }}</td>
+                        <td>{{ row.pending_count }}</td>
+                        <td>{% if row.member.expected_next_date %}{{ row.member.expected_next_date|date:"Y-m-d" }}{% else %}--{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <div class="form-row">
-            <label for="member-major">专业关键词</label>
-            <input id="member-major" type="text" name="major" value="{{ current_filters.major }}" placeholder="例如：软件工程">
-        </div>
-        <div class="form-row">
-            <label for="stage-filter">当前阶段</label>
-            <select id="stage-filter" name="stage">
-                <option value="">全部阶段</option>
-                {% for value, label in stage_choices %}
-                <option value="{{ value }}" {% if current_filters.stage == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-row">
-            <label for="task-status-filter">审批状态</label>
-            <select id="task-status-filter" name="task_status">
-                <option value="">全部</option>
-                <option value="pending" {% if current_filters.task_status == 'pending' %}selected{% endif %}>有待审批任务</option>
-                <option value="none" {% if current_filters.task_status == 'none' %}selected{% endif %}>无待审批任务</option>
-            </select>
-        </div>
-        <div class="form-row">
-            <label for="member-sort">排序方式</label>
-            <select id="member-sort" name="sort">
-                <option value="updated_desc" {% if current_filters.sort == 'updated_desc' %}selected{% endif %}>最近更新优先</option>
-                <option value="updated_asc" {% if current_filters.sort == 'updated_asc' %}selected{% endif %}>最早更新优先</option>
-                <option value="name_asc" {% if current_filters.sort == 'name_asc' %}selected{% endif %}>姓名升序</option>
-                <option value="name_desc" {% if current_filters.sort == 'name_desc' %}selected{% endif %}>姓名降序</option>
-                <option value="pending_desc" {% if current_filters.sort == 'pending_desc' %}selected{% endif %}>待审批任务多到少</option>
-                <option value="pending_asc" {% if current_filters.sort == 'pending_asc' %}selected{% endif %}>待审批任务少到多</option>
-                <option value="completed_desc" {% if current_filters.sort == 'completed_desc' %}selected{% endif %}>已完成节点多到少</option>
-                <option value="completed_asc" {% if current_filters.sort == 'completed_asc' %}selected{% endif %}>已完成节点少到多</option>
-            </select>
-        </div>
-        <div class="filter-actions">
-            <button type="submit" class="btn btn-primary">筛选</button>
-            <a href="{% url 'party:party_admin:members' %}" class="btn">重置</a>
-        </div>
-    </form>
-    {% if member_rows %}
-    <div class="table-wrap">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>学生</th>
-                    <th>学号</th>
-                    <th>当前阶段</th>
-                    <th>当前节点</th>
-                    <th>已完成节点</th>
-                    <th>待审批任务</th>
-                    <th>下一节点日期</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in member_rows %}
-                <tr>
-                    <td>
-                        <a href="{% url 'party:party_admin:member_detail' row.member.id %}?return_to={{ current_page_url|urlencode }}" class="text-link">
-                            {{ row.member.user.real_name|default:row.member.user.username }}
-                        </a>
-                    </td>
-                    <td>{{ row.member.user.student_id|default:"--" }}</td>
-                    <td>{{ row.member.get_current_stage_display }}</td>
-                    <td>{% if row.current_stage_instance %}{{ row.current_stage_instance.stage_definition.name }}{% else %}--{% endif %}</td>
-                    <td>{{ row.completed_count }}</td>
-                    <td>{{ row.pending_count }}</td>
-                    <td>{% if row.member.expected_next_date %}{{ row.member.expected_next_date|date:"Y-m-d" }}{% else %}--{% endif %}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="empty-panel">
-        <h3>没有匹配的成员</h3>
-        <p>请调整筛选条件，或先运行初始化命令导入演示数据。</p>
-    </div>
-    {% endif %}
-    {% if page_obj and page_obj.paginator.num_pages > 1 %}
-    <div class="pagination-bar section-spaced">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{{ member_page_query }}" class="btn">上一页</a>
         {% else %}
-        <span class="btn btn-disabled">上一页</span>
+        <div class="empty-panel">
+            <h3>没有匹配的成员</h3>
+            <p>请调整筛选条件，或先运行初始化命令导入演示数据。</p>
+        </div>
         {% endif %}
-        <span class="muted-text">第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页，共 {{ page_obj.paginator.count }} 条</span>
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{{ member_page_query }}" class="btn">下一页</a>
-        {% else %}
-        <span class="btn btn-disabled">下一页</span>
+
+        {% if page_obj and page_obj.paginator.num_pages > 1 %}
+        <div class="pagination-bar section-spaced">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{{ member_page_query }}" class="btn">上一页</a>
+            {% else %}
+            <span class="btn btn-disabled">上一页</span>
+            {% endif %}
+            <span class="muted-text">第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页，共 {{ page_obj.paginator.count }} 条</span>
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{{ member_page_query }}" class="btn">下一页</a>
+            {% else %}
+            <span class="btn btn-disabled">下一页</span>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
-    {% endif %}
 </section>
 {% endblock %}

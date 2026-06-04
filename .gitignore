@@ -212,3 +212,17 @@ CLAUDE.md
 
 # IDEA
 .idea
+
+#启动脚本
+start.sh
+
+pyproject.toml
+
+prompts_example.py
+
+uv.lock
+
+.python-version
+
+.config
+.env.example

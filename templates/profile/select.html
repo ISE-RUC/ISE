@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}荣誉画像{% endblock %}
+{% block content %}
+<section style="max-width:800px;margin:0 auto;padding:2rem;">
+    <div class="card">
+        <div class="hero-head">
+            <div>
+                <h1 class="hero-title">荣誉画像</h1>
+                <p class="hero-desc">请选择您要进入的端口</p>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:{% if is_admin %}1fr 1fr{% else %}1fr{% endif %};gap:24px;margin-top:2rem;">
+            <a href="{% url 'profile:student' %}" class="action-item" style="text-align:center;padding:2rem;text-decoration:none;">
+                <div class="icon-wrap" style="font-size:3rem;margin-bottom:1rem;">🎓</div>
+                <h3>学生端</h3>
+                <p>查看个人荣誉记录</p>
+            </a>
+            {% if is_admin %}
+            <a href="{% url 'profile:admin' %}" class="action-item" style="text-align:center;padding:2rem;text-decoration:none;">
+                <div class="icon-wrap" style="font-size:3rem;margin-bottom:1rem;">📝</div>
+                <h3>管理端</h3>
+                <p>录入和管理学生荣誉</p>
+            </a>
+            {% endif %}
+        </div>
+
+        <div style="margin-top:2rem;text-align:center;">
+            <a href="{% url 'users:home' %}" class="btn">返回首页</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

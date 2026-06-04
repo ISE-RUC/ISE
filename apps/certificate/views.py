@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.base import ContentFile
-from django.core.exceptions import ValidationError
 from django.http import FileResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -20,6 +19,8 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from apps.users.models import User
 
 from .models import CertificateLog, CertificateMaterial, CertificateRequest
 
@@ -117,35 +118,29 @@ def register_pdf_font():
             continue
 
 
-def get_certificate_user(request):
-    if request.user.is_authenticated:
-        return request.user
-    return None
-
-
-def get_certificate_student_record(user):
-    if user is None or not user.is_authenticated:
-        return None
-    return user
-
-
-def get_missing_profile_fields(student):
-    missing = []
-    if not student or not (student.student_id or "").strip():
-        missing.append("学号")
-    return missing
-
-
-def validate_certificate_profile(student):
-    missing = get_missing_profile_fields(student)
-    if missing:
-        raise ValidationError(f"证明申请至少需要绑定学号。请先补全学号后再申请证明。")
-
 
 def build_reference_no():
     today = timezone.localtime().strftime("%Y%m%d")
     count = CertificateRequest.objects.filter(reference_no__startswith=f"CERT-{today}").count() + 1
     return f"CERT-{today}-{count:04d}"
+
+
+def ensure_demo_user():
+    user, created = User.objects.get_or_create(
+        username="certificate_demo_student",
+        defaults={
+            "real_name": "演示学生",
+            "student_id": "2026001002",
+            "grade": "2026",
+            "major": "信息系统工程",
+            "email": "certificate-demo@example.com",
+            "role": User.ROLE_STUDENT,
+        },
+    )
+    if created:
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+    return user
 
 
 def add_log(request_obj, action, detail, operator):
@@ -177,7 +172,6 @@ def material_check_passed(request_obj):
 
 
 def build_certificate_pdf(request_obj, student, is_preview=False):
-    validate_certificate_profile(student)
     register_pdf_font()
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -284,7 +278,7 @@ def build_certificate_pdf(request_obj, student, is_preview=False):
     return buffer.getvalue()
 
 
-def generate_certificate_file(request_obj, student):
+def generate_demo_file(request_obj, student):
     pdf_bytes = build_certificate_pdf(request_obj, student, is_preview=False)
     filename = f"{request_obj.reference_no}.pdf"
     request_obj.generated_pdf.save(filename, ContentFile(pdf_bytes), save=False)
@@ -326,6 +320,10 @@ def sync_all_requests(student):
     for request_obj in CertificateRequest.objects.filter(applicant=student):
         sync_completed_if_expired(request_obj)
 
+def sync_all_requests_for_queryset(queryset):
+    for request_obj in queryset:
+        sync_completed_if_expired(request_obj)
+
 
 def option_id_from_name(cert_name):
     for key, value in CERTIFICATE_OPTIONS.items():
@@ -335,15 +333,20 @@ def option_id_from_name(cert_name):
 
 
 def get_student_profile(student):
-    missing_fields = get_missing_profile_fields(student)
+    gender = "未填写"
+    if student.id_number and len(student.id_number) == 18:
+        # 从身份证号提取性别（倒数第二位，奇数为男，偶数为女）
+        try:
+            gender_digit = int(student.id_number[-2])
+            gender = "男" if gender_digit % 2 == 1 else "女"
+        except (ValueError, IndexError):
+            gender = "未填写"
+
     return {
-        "name": student.real_name if student and student.real_name else "",
-        "student_id": student.student_id if student and student.student_id else "未录入",
-        "major": student.major if student and student.major else "",
-        "gender": "",
-        "is_complete": not missing_fields,
-        "missing_fields": missing_fields,
-        "missing_text": "、".join(missing_fields),
+        "name": student.real_name or student.username,
+        "student_id": student.student_id or "未填写",
+        "major": student.major or "未填写",
+        "gender": gender,
     }
 
 
@@ -369,18 +372,7 @@ def get_status_payload(request_obj):
         if request_obj.status == CertificateRequest.STATUS_COMPLETED:
             pdf_state = "正式文件已生成"
 
-    can_preview = bool(
-        not request_obj.is_pdf_void
-        and request_obj.status
-        in {
-            CertificateRequest.STATUS_MATERIAL_PENDING,
-            CertificateRequest.STATUS_MATERIAL_REJECTED,
-            CertificateRequest.STATUS_PENDING_REVIEW,
-            CertificateRequest.STATUS_REJECTED,
-            CertificateRequest.STATUS_APPROVED_OBSERVING,
-            CertificateRequest.STATUS_COMPLETED,
-        }
-    )
+    can_preview = bool(request_obj.generated_pdf and not request_obj.is_pdf_void)
     can_download = bool(
         request_obj.generated_pdf
         and not request_obj.is_pdf_void
@@ -496,15 +488,17 @@ def build_request_rows(student):
     return rows
 
 
-def get_request_or_404(student, pk):
-    request_obj = get_object_or_404(CertificateRequest, pk=pk, applicant=student)
+def get_request_or_404(user, pk):
+    if user.is_authenticated and user.is_admin_or_above():
+        request_obj = get_object_or_404(CertificateRequest, pk=pk)
+    else:
+        request_obj = get_object_or_404(CertificateRequest, pk=pk, applicant=user)
     sync_completed_if_expired(request_obj)
     request_obj.refresh_from_db()
     return request_obj
 
 
 def create_request(student, selected_type, purpose, attachment_note):
-    validate_certificate_profile(student)
     cert_info = CERTIFICATE_OPTIONS.get(selected_type, CERTIFICATE_OPTIONS["party-member"])
     request_obj = CertificateRequest.objects.create(
         applicant=student,
@@ -540,7 +534,6 @@ def create_request(student, selected_type, purpose, attachment_note):
 
 
 def update_request_for_resubmit(request_obj, selected_type, purpose, attachment_note):
-    validate_certificate_profile(request_obj.applicant)
     cert_info = CERTIFICATE_OPTIONS.get(selected_type, CERTIFICATE_OPTIONS["party-member"])
     request_obj.cert_type = cert_info["name"]
     request_obj.purpose = purpose
@@ -582,10 +575,41 @@ class ListView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        student = get_certificate_student_record(get_certificate_user(self.request))
+        user = self.request.user
+        
+        # If admin/leader, show all requests. Else show only their own.
+        if user.is_admin_or_above():
+            sync_all_requests_for_queryset(CertificateRequest.objects.all())
+            queryset = CertificateRequest.objects.all().order_by("-created_at", "-id")
+        else:
+            sync_all_requests(user)
+            queryset = CertificateRequest.objects.filter(applicant=user).order_by("-created_at", "-id")
+            
+        rows = []
+        for item in queryset:
+            status_payload = get_status_payload(item)
+            rows.append(
+                {
+                    "id": item.id,
+                    "reference": item.reference_no,
+                    "cert_type": item.cert_type,
+                    "status": status_payload["status"],
+                    "status_class": status_payload["status_class"],
+                    "created_at": timezone.localtime(item.created_at).strftime("%Y-%m-%d %H:%M"),
+                    "updated_at": timezone.localtime(item.updated_at).strftime("%Y-%m-%d %H:%M"),
+                    "pdf_state": status_payload["pdf_state"],
+                    "can_preview": status_payload["can_preview"],
+                    "can_download": status_payload["can_download"],
+                    "can_revoke": status_payload["can_revoke"],
+                    "can_resubmit": status_payload["can_resubmit"],
+                    "applicant_name": item.applicant.real_name or item.applicant.username,
+                }
+            )
+            
         context["page_intro"] = "按时间查看历史申请，点击某一条即可进入详情查看状态、下载文件或撤回。"
-        context["student_profile"] = get_student_profile(student)
-        context["request_rows"] = build_request_rows(student)
+        context["student_profile"] = get_student_profile(user)
+        context["request_rows"] = rows
+        context["is_admin"] = user.is_admin_or_above()
         return context
 
 
@@ -594,9 +618,9 @@ class CreateView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        student = get_certificate_student_record(get_certificate_user(self.request))
+        user = self.request.user
         context["page_intro"] = "新建证明申请时先确认个人信息，再填写用途说明、附件说明并提交。"
-        context["student_profile"] = get_student_profile(student)
+        context["student_profile"] = get_student_profile(user)
         context["certificate_types"] = [{"id": key, **value} for key, value in CERTIFICATE_OPTIONS.items()]
         context["selected_certificate_type"] = self.request.GET.get("type", "party-member")
         context["form_values"] = {
@@ -610,15 +634,11 @@ class CreateView(LoginRequiredMixin, TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        student = get_certificate_student_record(get_certificate_user(request))
+        user = request.user
         selected_type = request.POST.get("certificate_type", "party-member")
         purpose = request.POST.get("purpose", "").strip()
         attachment_note = request.POST.get("attachment_note", "").strip()
-        try:
-            request_obj, success = create_request(student, selected_type, purpose, attachment_note)
-        except ValidationError as exc:
-            messages.error(request, exc.messages[0])
-            return redirect("certificate:create")
+        request_obj, success = create_request(user, selected_type, purpose, attachment_note)
         if success:
             messages.success(request, "申请已提交，当前等待管理员审核。")
         else:
@@ -631,10 +651,10 @@ class DetailView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        student = get_certificate_student_record(get_certificate_user(self.request))
-        request_obj = get_request_or_404(student, kwargs["pk"])
+        user = self.request.user
+        request_obj = get_request_or_404(user, kwargs["pk"])
 
-        context["student_profile"] = get_student_profile(student)
+        context["student_profile"] = get_student_profile(request_obj.applicant)
         context["request_obj"] = request_obj
         context["active_application"] = get_status_payload(request_obj)
         context["selected_certificate_type"] = option_id_from_name(request_obj.cert_type)
@@ -675,8 +695,8 @@ class DetailView(LoginRequiredMixin, TemplateView):
 
 class ResubmitView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        student = get_certificate_student_record(get_certificate_user(request))
-        request_obj = get_request_or_404(student, pk)
+        user = request.user
+        request_obj = get_request_or_404(user, pk)
 
         if request_obj.status not in {
             CertificateRequest.STATUS_MATERIAL_REJECTED,
@@ -689,11 +709,7 @@ class ResubmitView(LoginRequiredMixin, View):
         selected_type = request.POST.get("certificate_type", "party-member")
         purpose = request.POST.get("purpose", "").strip()
         attachment_note = request.POST.get("attachment_note", "").strip()
-        try:
-            success = update_request_for_resubmit(request_obj, selected_type, purpose, attachment_note)
-        except ValidationError as exc:
-            messages.error(request, exc.messages[0])
-            return redirect("certificate:detail", pk=pk)
+        success = update_request_for_resubmit(request_obj, selected_type, purpose, attachment_note)
 
         if success:
             messages.success(request, "申请已重新提交，当前等待管理员审核。")
@@ -704,8 +720,8 @@ class ResubmitView(LoginRequiredMixin, View):
 
 class RevokeView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        student = get_certificate_student_record(get_certificate_user(request))
-        request_obj = get_request_or_404(student, pk)
+        user = request.user
+        request_obj = get_request_or_404(user, pk)
         if request_obj.status != CertificateRequest.STATUS_APPROVED_OBSERVING:
             messages.warning(request, "当前状态下不能撤回。")
             return redirect("certificate:detail", pk=pk)
@@ -722,8 +738,8 @@ class RevokeView(LoginRequiredMixin, View):
 
 class DownloadView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        student = get_certificate_student_record(get_certificate_user(request))
-        request_obj = get_request_or_404(student, pk)
+        user = request.user
+        request_obj = get_request_or_404(user, pk)
         if request_obj.status != CertificateRequest.STATUS_COMPLETED:
             messages.warning(request, "申请尚未全流程办结，只能查看预览稿，暂不能下载正式文件。")
             return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
@@ -731,39 +747,27 @@ class DownloadView(LoginRequiredMixin, View):
             messages.warning(request, "该文件已作废，不能下载。")
             return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
         if not request_obj.generated_pdf or not request_obj.generated_pdf.name.lower().endswith(".pdf"):
-            try:
-                generate_certificate_file(request_obj, student)
-            except ValidationError as exc:
-                messages.error(request, exc.messages[0])
-                return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
+            generate_demo_file(request_obj, request_obj.applicant)
             request_obj.save(update_fields=["generated_pdf", "is_pdf_void", "updated_at"])
         return redirect(request_obj.generated_pdf.url)
 
 
 class PreviewDraftView(LoginRequiredMixin, View):
     def get(self, request):
-        student = get_certificate_student_record(get_certificate_user(request))
+        user = request.user
         selected_type = request.GET.get("certificate_type", "party-member")
         purpose = request.GET.get("purpose", "").strip() or "预览用途，正式提交时以填写内容为准"
         draft_request = build_draft_preview_request(selected_type, purpose)
-        try:
-            pdf_bytes = build_certificate_pdf(draft_request, student, is_preview=True)
-        except ValidationError as exc:
-            messages.error(request, exc.messages[0])
-            return HttpResponseRedirect(reverse("certificate:create"))
+        pdf_bytes = build_certificate_pdf(draft_request, user, is_preview=True)
         return pdf_response(pdf_bytes, f"{draft_request.reference_no}.pdf")
 
 
 class PreviewView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        student = get_certificate_student_record(get_certificate_user(request))
-        request_obj = get_request_or_404(student, pk)
+        user = request.user
+        request_obj = get_request_or_404(user, pk)
         if request_obj.is_pdf_void:
             messages.warning(request, "该文件已作废，不能预览。")
             return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
-        try:
-            pdf_bytes = build_certificate_pdf(request_obj, student, is_preview=True)
-        except ValidationError as exc:
-            messages.error(request, exc.messages[0])
-            return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
+        pdf_bytes = build_certificate_pdf(request_obj, request_obj.applicant, is_preview=True)
         return pdf_response(pdf_bytes, f"{request_obj.reference_no}-preview.pdf")

@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.qa.models import FAQEntry
 from apps.users.models import User
 
 
@@ -20,11 +19,11 @@ class QAPageTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/users/login/", response["Location"])
 
-    def test_qa_search_returns_faq_results(self):
-        FAQEntry.objects.create(question="国奖申请条件是什么", answer="请以学院通知为准。")
+    def test_qa_page_creates_active_conversation(self):
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("qa:index"), {"q": "国奖"})
+        response = self.client.get(reverse("qa:index"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "国奖申请条件是什么")
+        self.assertTrue(response.context["active_conversation_id"])
+        self.assertGreaterEqual(len(response.context["chat_messages"]), 1)

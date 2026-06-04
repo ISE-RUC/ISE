@@ -12,17 +12,9 @@
             </div>
             <div class="role-tag">
                 <div class="small">当前角色</div>
-                <div class="role">普通学生视图</div>
+                <div class="role">{{ role_name }}</div>
             </div>
         </div>
-
-        <form class="search-box" method="get" action="{% url 'qa:index' %}">
-            <div class="section-label">智能问答检索</div>
-            <div class="search-row">
-                <input name="q" type="text" placeholder="请输入问题，如：国奖申请条件、请假证明模板、入党流程节点..." />
-                <button class="btn btn-primary" type="submit">立即检索</button>
-            </div>
-        </form>
 
         <div class="action-grid">
             <a href="{% url 'party:index' %}" class="action-item">
@@ -49,24 +41,18 @@
                 <p>学院通知、标签推送、重要消息提醒</p>
                 <div class="link">进入功能 →</div>
             </a>
-            <a href="{% url 'profile:index' %}" class="action-item">
+            <a href="{% url 'profile:select' %}" class="action-item">
                 <div class="icon-wrap">🏅</div>
                 <h3>荣誉画像</h3>
                 <p>个人荣誉、骨干工作量、成长记录</p>
                 <div class="link">进入功能 →</div>
             </a>
-            <a href="{% url 'profile:index' %}" class="action-item">
-                <div class="icon-wrap">👤</div>
-                <h3>个人信息</h3>
-                <p>维护姓名、学号、专业、年级和邮箱</p>
-                <div class="link">编辑资料 →</div>
-            </a>
-            <div class="action-item">
+            <a href="{% url 'workflow:select' %}" class="action-item">
                 <div class="icon-wrap">🕒</div>
                 <h3>我的流程</h3>
                 <p>审批状态、时间轴、待办事项与倒计时</p>
                 <div class="link">进入功能 →</div>
-            </div>
+            </a>
         </div>
     </div>
 
@@ -74,24 +60,51 @@
         <div class="card" style="margin-bottom:24px">
             <div class="card-head">
                 <h2>未读通知</h2>
-                <span class="pill pill-primary">精准推送</span>
+                <span class="pill pill-primary">{{ home_unread_count }} 条未读</span>
             </div>
             <div class="notice-list">
-                <div class="notice-item">【就业】2026届互联网企业春招信息汇总已发布</div>
-                <div class="notice-item">【党团】积极分子思想汇报提交截止倒计时 3 天</div>
-                <div class="notice-item">【通知】学生证明模板已更新，请按新模板申请</div>
+                {% for item in home_notifications %}
+                <a class="notice-item notice-link-item" href="{% url 'notification:index' %}?status=unread">
+                    <div>
+                        <strong>{{ item.title }}</strong>
+                        <p>{{ item.content|truncatechars:54 }}</p>
+                    </div>
+                    <span>{{ item.created_at|date:"m-d H:i" }}</span>
+                </a>
+                {% empty %}
+                <div class="notice-item">当前没有未读通知。</div>
+                {% endfor %}
             </div>
+            {% if home_unread_count > 3 %}
+            <div class="notice-more">
+                <a href="{% url 'notification:index' %}?status=unread">查看全部 {{ home_unread_count }} 条未读通知</a>
+            </div>
+            {% endif %}
+            {% if can_publish_notifications %}
+            <div style="margin-top:14px;">
+                <a href="{% url 'notification:index' %}" class="btn btn-primary">发布/管理通知</a>
+            </div>
+            {% endif %}
         </div>
 
         <div class="card">
             <div class="card-head">
                 <h2>我的待办</h2>
-                <span style="font-size:14px;color:var(--muted)">3 项待处理</span>
+                <span style="font-size:14px;color:var(--muted)">{{ todo_count }} 项待处理</span>
             </div>
             <div class="todo-list">
-                <div class="todo-item"><span class="dot"></span><span>提交思想汇报（截止 04-15）</span></div>
-                <div class="todo-item"><span class="dot"></span><span>完善联系方式绑定</span></div>
-                <div class="todo-item"><span class="dot"></span><span>查看新发布奖助政策</span></div>
+                {% for todo in todos %}
+                <a href="{{ todo.url }}" class="todo-item" style="text-decoration:none;color:inherit;">
+                    <span class="dot"></span>
+                    <span>
+                        {{ todo.title }}
+                        {% if todo.step_name %} - {{ todo.step_name }}{% endif %}
+                        {% if todo.deadline %}（截止 {{ todo.deadline|date:"m-d H:i" }}）{% endif %}
+                    </span>
+                </a>
+                {% empty %}
+                <div class="todo-item"><span class="dot"></span><span>暂无待办事项</span></div>
+                {% endfor %}
             </div>
         </div>
     </div>

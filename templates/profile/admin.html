@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}荣誉画像 - 管理端{% endblock %}
+{% block content %}
+<section style="max-width:1200px;margin:0 auto;padding:2rem;">
+    {% if no_permission %}
+    <div class="card">
+        <div style="text-align:center;padding:3rem;">
+            <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+            <h2 style="margin-bottom:1rem;">您没有权限</h2>
+            <p style="color:var(--muted);margin-bottom:2rem;">只有管理老师和学院领导可以访问管理端</p>
+            <a href="{% url 'profile:select' %}" class="btn">返回选择</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="hero-head">
+            <div>
+                <h1 class="hero-title">荣誉管理</h1>
+                <p class="hero-desc">录入和管理学生荣誉记录</p>
+            </div>
+            <div class="role-tag">
+                <div class="small">当前端口</div>
+                <div class="role">管理端</div>
+            </div>
+        </div>
+
+        <div class="action-grid cert-summary-grid">
+            <div class="action-item" style="cursor:default;">
+                <div class="icon-wrap">📝</div>
+                <h3>荣誉录入</h3>
+                <p>为学生录入获奖信息</p>
+            </div>
+            <div class="action-item" style="cursor:default;">
+                <div class="icon-wrap">📊</div>
+                <h3>数据管理</h3>
+                <p>共 {{ honors|length }} 条荣誉记录</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>录入荣誉</h2>
+            <span class="pill pill-primary">管理入口</span>
+        </div>
+        <form method="post" action="{% url 'profile:add' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                <div>
+                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">学生学号 *</label>
+                    <input type="text" name="student_id" placeholder="请输入学号" required
+                        style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">奖项名称 *</label>
+                    <input type="text" name="title" placeholder="请输入奖项名称" required
+                        style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                <div>
+                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">奖项类别</label>
+                    <select name="category" style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
+                        {% for value, label in category_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">奖项级别</label>
+                    <select name="level" style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
+                        <option value="院级">院级</option>
+                        <option value="校级">校级</option>
+                        <option value="省级">省级</option>
+                        <option value="国家级">国家级</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                <div>
+                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">获奖日期</label>
+                    <input type="date" name="awarded_at"
+                        style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:0 16px;background:#fff;">
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">证明材料（证书）</label>
+                    <input type="file" name="attachment" accept="image/*,.pdf"
+                        style="width:100%;height:48px;border:1px solid var(--line);border-radius:16px;padding:8px 16px;background:#fff;">
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:700;color:#374151;">奖项描述</label>
+                <textarea name="description" rows="3" placeholder="请输入奖项描述（可选）"
+                    style="width:100%;border:1px solid var(--line);border-radius:16px;padding:12px 16px;background:#fff;font-family:inherit;"></textarea>
+            </div>
+            <div class="cert-button-row">
+                <button type="submit" class="btn btn-primary">录入荣誉</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-head">
+            <h2>荣誉列表</h2>
+            <span class="pill pill-primary">{{ honors|length }} 条记录</span>
+        </div>
+        <div style="overflow:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                <thead>
+                    <tr>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">奖项名称</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">类别</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">级别</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">学生</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">描述</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">获奖日期</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">证明材料</th>
+                        <th style="padding:14px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;color:var(--muted);font-weight:700;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for honor in honors %}
+                    <tr>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);font-weight:600;">{{ honor.title }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            <span class="pill pill-primary">{{ honor.get_category_display }}</span>
+                        </td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ honor.level }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            {% if honor.user.real_name %}{{ honor.user.real_name }}{% else %}{{ honor.user.username }}{% endif %}
+                            <br><span style="font-size:12px;color:var(--muted);">{{ honor.user.student_id|default:"" }}</span>
+                        </td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);color:var(--muted);">
+                            {% if honor.description %}{{ honor.description|truncatewords:20 }}{% else %}暂无{% endif %}
+                        </td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">{{ honor.awarded_at|date:"Y-m-d" }}</td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            {% if honor.attachment %}
+                            <a href="{{ honor.attachment.url }}" target="_blank" class="btn btn-primary" style="padding:6px 12px;min-width:auto;font-size:13px;">查看证明</a>
+                            {% else %}
+                            <span style="color:var(--muted);font-size:13px;">暂无</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:14px 12px;border-bottom:1px solid var(--line);">
+                            <form method="post" action="{% url 'profile:delete' honor.id %}" onsubmit="return confirm('确定删除该荣誉记录吗？');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn" style="padding:6px 12px;min-width:auto;font-size:13px;color:#ef4444;border-color:#fecaca;">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="padding:24px 12px;text-align:center;color:var(--muted);">
+                            暂无荣誉记录，请使用上方表单录入。
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="margin-top:24px;text-align:center;">
+        <a href="{% url 'profile:select' %}" class="btn">返回选择</a>
+        <a href="{% url 'users:home' %}" class="btn" style="margin-left:12px;">返回首页</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
