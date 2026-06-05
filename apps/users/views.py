@@ -9,6 +9,7 @@ from django.views.generic import FormView, RedirectView, TemplateView
 from ninja import Router, Schema
 from ninja.security import django_auth
 
+from apps.party.services.profile import ensure_party_profile_for_user
 from apps.users.forms import LoginForm, StudentRegisterForm
 from apps.users.models import User
 from apps.workflow.models import WorkflowInstance, WorkflowStepRecord
@@ -399,6 +400,7 @@ def api_admin_create_user(request, payload: AdminCreateUserIn):
         major=(payload.major or "").strip(),
         email=(payload.email or "").strip(),
     )
+    ensure_party_profile_for_user(user, created_by=request.user)
     return success(data=_serialize_current_user(user), msg="账号创建成功")
 
 
@@ -417,6 +419,7 @@ def api_update_user_role(request, user_id: int, payload: UpdateRoleIn):
 
     user.role = payload.role
     user.save(update_fields=["role"])
+    ensure_party_profile_for_user(user, created_by=request.user)
     return success(data=_serialize_current_user(user), msg="角色更新成功")
 
 

@@ -60,8 +60,8 @@ class PartyMemberStatus(models.Model):
 
     def clean(self):
         super().clean()
-        if self.user and self.user.role != User.ROLE_STUDENT:
-            raise ValidationError("党团发展档案默认仅绑定普通学生角色。")
+        if self.user and self.user.role not in {User.ROLE_STUDENT, User.ROLE_CADRE}:
+            raise ValidationError("党团发展档案默认仅绑定普通学生或班团骨干角色。")
 
 
 class PartyStageDefinition(models.Model):
