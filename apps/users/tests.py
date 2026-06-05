@@ -2,6 +2,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.party.models import PartyMemberStatus
 from apps.users.models import AuditLog, User
 
 
@@ -47,6 +48,9 @@ class UserAuthViewTests(TestCase):
         user = User.objects.get(student_id="20260002")
         self.assertEqual(user.username, "20260002")
         self.assertEqual(user.role, User.ROLE_STUDENT)
+        profile = PartyMemberStatus.objects.get(user=user)
+        self.assertEqual(profile.track_type, PartyMemberStatus.TrackType.PARTY)
+        self.assertEqual(profile.current_stage, PartyMemberStatus.Stage.APPLICANT)
 
     def test_register_creates_cadre_user(self):
         response = self.client.post(
@@ -63,6 +67,7 @@ class UserAuthViewTests(TestCase):
         self.assertRedirects(response, "/", fetch_redirect_response=False)
         user = User.objects.get(student_id="20260012")
         self.assertEqual(user.role, User.ROLE_CADRE)
+        self.assertTrue(PartyMemberStatus.objects.filter(user=user).exists())
 
     def test_register_creates_admin_user_with_employee_id(self):
         response = self.client.post(
@@ -253,6 +258,8 @@ class UserAuthViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         created_user = User.objects.get(username="cadre01")
         self.assertEqual(created_user.role, User.ROLE_CADRE)
+        profile = PartyMemberStatus.objects.get(user=created_user)
+        self.assertEqual(profile.created_by, admin_user)
 
     def test_admin_cannot_create_leader_user(self):
         admin_user = User.objects.create_user(
@@ -295,6 +302,33 @@ class UserAuthViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         cadre_user.refresh_from_db()
         self.assertEqual(cadre_user.role, User.ROLE_ADMIN)
+
+    def test_leader_promoting_student_role_creates_party_profile(self):
+        leader_user = User.objects.create_user(
+            username="leader03",
+            employee_id="L0003",
+            password="party1234",
+            real_name="学院领导",
+            role=User.ROLE_LEADER,
+        )
+        target_user = User.objects.create_user(
+            username="teacher-like-user",
+            employee_id="T0099",
+            password="party1234",
+            real_name="待转学生",
+            role=User.ROLE_ADMIN,
+        )
+        self.client.force_login(leader_user)
+        response = self.client.post(
+            f"/api/users/{target_user.id}/role",
+            data='{"role":4}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        target_user.refresh_from_db()
+        self.assertEqual(target_user.role, User.ROLE_STUDENT)
+        profile = PartyMemberStatus.objects.get(user=target_user)
+        self.assertEqual(profile.created_by, leader_user)
 
     def test_seed_demo_users_command_creates_accounts(self):
         call_command("seed_demo_users")

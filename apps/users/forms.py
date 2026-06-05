@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib.auth import authenticate
+from django.db import transaction
 
+from apps.party.services.profile import ensure_party_profile_for_user
 from apps.users.models import User
 
 
@@ -131,5 +133,7 @@ class StudentRegisterForm(forms.ModelForm):
         user.username = student_id if role in (User.ROLE_STUDENT, User.ROLE_CADRE) else employee_id
         user.set_password(self.cleaned_data["password1"])
         if commit:
-            user.save()
+            with transaction.atomic():
+                user.save()
+                ensure_party_profile_for_user(user)
         return user
