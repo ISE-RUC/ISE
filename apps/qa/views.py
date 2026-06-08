@@ -1,9 +1,11 @@
 import json
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
 from ninja import Router, Schema
+from ninja.security import django_auth
 
 from .keyword.service import QaKeywordService
 from utils.response import error, success
@@ -193,7 +195,7 @@ def _switch_payload(request, cid: str) -> dict | None:
     }
 
 
-class IndexView(TemplateView):
+class IndexView(LoginRequiredMixin, TemplateView):
     template_name = "qa/index.html"
 
     def get_context_data(self, **kwargs):
@@ -213,7 +215,7 @@ class IndexView(TemplateView):
         return context
 
 
-class ChatMessageView(View):
+class ChatMessageView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         content_type = (request.headers.get("Content-Type") or "").lower()
         if "application/json" in content_type:
@@ -232,17 +234,17 @@ class ChatMessageView(View):
         return JsonResponse(success(data=payload))
 
 
-class ResetConversationView(View):
+class ResetConversationView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         return JsonResponse(success(data=_reset_payload(request)))
 
 
-class NewConversationView(View):
+class NewConversationView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         return JsonResponse(success(data=_new_payload(request)))
 
 
-class SwitchConversationView(View):
+class SwitchConversationView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         content_type = (request.headers.get("Content-Type") or "").lower()
         if "application/json" in content_type:
@@ -261,7 +263,7 @@ class SwitchConversationView(View):
         return JsonResponse(success(data=payload))
 
 
-@router.post("/chat")
+@router.post("/chat", auth=django_auth)
 def api_chat(request, payload: ChatIn):
     message = (payload.message or "").strip()
     if not message:
@@ -269,17 +271,17 @@ def api_chat(request, payload: ChatIn):
     return success(data=_chat_payload(request, message))
 
 
-@router.post("/new")
+@router.post("/new", auth=django_auth)
 def api_new(request):
     return success(data=_new_payload(request))
 
 
-@router.post("/reset")
+@router.post("/reset", auth=django_auth)
 def api_reset(request):
     return success(data=_reset_payload(request))
 
 
-@router.post("/switch")
+@router.post("/switch", auth=django_auth)
 def api_switch(request, payload: SwitchIn):
     cid = (payload.conversation_id or "").strip()
     if not cid:

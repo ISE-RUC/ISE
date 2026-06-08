@@ -1,5 +1,6 @@
 from django.utils import timezone
 from ninja import Router, Schema
+from ninja.security import django_auth
 
 from utils.response import error, success
 
@@ -88,15 +89,16 @@ def _serialize_request_detail(request, request_obj):
     }
 
 
-@router.get("/types")
+@router.get("/types", auth=django_auth)
 def list_certificate_types(request):
     data = [{"id": key, **value} for key, value in CERTIFICATE_OPTIONS.items()]
     return success(data={"types": data})
 
 
-@router.get("/")
+@router.get("/", auth=django_auth)
 def list_certificates(request):
-    student = ensure_demo_user()
+    student = request.user
+    sync_all_requests_for_queryset(CertificateRequest.objects.filter(applicant=student))
     rows = []
     for row in build_request_rows(student):
         item = {**row}
@@ -113,9 +115,9 @@ def list_certificates(request):
     return success(data={"student": get_student_profile(student), "requests": rows})
 
 
-@router.post("/")
+@router.post("/", auth=django_auth)
 def create_certificate(request, payload: CertificateSubmitIn):
-    student = ensure_demo_user()
+    student = request.user
     request_obj, ok = create_request(
         student,
         payload.certificate_type,
@@ -133,16 +135,16 @@ def create_certificate(request, payload: CertificateSubmitIn):
     return success(data=data, msg="申请已提交，当前等待管理员审核。")
 
 
-@router.get("/{request_id}")
+@router.get("/{request_id}", auth=django_auth)
 def get_certificate(request, request_id: int):
-    student = ensure_demo_user()
+    student = request.user
     request_obj = get_request_or_404(student, request_id)
     return success(data={"request": _serialize_request_detail(request, request_obj)})
 
 
-@router.post("/{request_id}/resubmit")
+@router.post("/{request_id}/resubmit", auth=django_auth)
 def resubmit_certificate(request, request_id: int, payload: CertificateSubmitIn):
-    student = ensure_demo_user()
+    student = request.user
     request_obj = get_request_or_404(student, request_id)
     if request_obj.status not in {
         CertificateRequest.STATUS_MATERIAL_REJECTED,
@@ -169,9 +171,9 @@ def resubmit_certificate(request, request_id: int, payload: CertificateSubmitIn)
     return success(data=data, msg="申请已重新提交，当前等待管理员审核。")
 
 
-@router.post("/{request_id}/revoke")
+@router.post("/{request_id}/revoke", auth=django_auth)
 def revoke_certificate(request, request_id: int):
-    student = ensure_demo_user()
+    student = request.user
     request_obj = get_request_or_404(student, request_id)
     if request_obj.status != CertificateRequest.STATUS_APPROVED_OBSERVING:
         return error(msg="当前状态下不能撤回。", code=400)
