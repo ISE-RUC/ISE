@@ -1,4 +1,5 @@
 from ninja import Router, Schema
+from ninja.security import django_auth
 from django.db.models import Q
 
 from apps.users.models import User
@@ -40,7 +41,7 @@ def _serialize_notification(item):
     }
 
 
-@router.get("/")
+@router.get("/", auth=django_auth)
 def list_notifications(request, status: str = "all", q: str = ""):
     ensure_demo_notifications()
     user = get_notification_user(request)
@@ -65,7 +66,7 @@ def list_notifications(request, status: str = "all", q: str = ""):
     )
 
 
-@router.get("/{notification_id}")
+@router.get("/{notification_id}", auth=django_auth)
 def get_notification(request, notification_id: int):
     ensure_demo_notifications()
     user = get_notification_user(request)
@@ -77,7 +78,7 @@ def get_notification(request, notification_id: int):
     return success(data={"notification": _serialize_notification(item)})
 
 
-@router.post("/")
+@router.post("/", auth=django_auth)
 def publish_notification(request, payload: NotificationPublishIn):
     user = get_notification_user(request)
     if not can_publish_notifications(user):
@@ -107,7 +108,7 @@ def publish_notification(request, payload: NotificationPublishIn):
     return success(data={"notification": _serialize_notification(item)}, msg="通知已发布。")
 
 
-@router.post("/{notification_id}/read")
+@router.post("/{notification_id}/read", auth=django_auth)
 def mark_notification_read(request, notification_id: int):
     ensure_demo_notifications()
     user = get_notification_user(request)
@@ -120,7 +121,7 @@ def mark_notification_read(request, notification_id: int):
     return success(msg="通知已标记为已读。")
 
 
-@router.post("/read-all")
+@router.post("/read-all", auth=django_auth)
 def mark_all_notifications_read(request):
     ensure_demo_notifications()
     user = get_notification_user(request)
