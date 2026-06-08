@@ -179,7 +179,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class PublishView(View):
+class PublishView(LoginRequiredMixin, View):
     def post(self, request):
         user = get_notification_user(request)
         if not can_publish_notifications(user):
@@ -222,7 +222,7 @@ class PublishView(View):
         return redirect("notification:index")
 
 
-class MarkReadView(View):
+class MarkReadView(LoginRequiredMixin, View):
     def post(self, request, pk):
         ensure_demo_notifications()
         user = get_notification_user(request)
@@ -235,7 +235,7 @@ class MarkReadView(View):
         return redirect("notification:index")
 
 
-class MarkAllReadView(View):
+class MarkAllReadView(LoginRequiredMixin, View):
     def post(self, request):
         ensure_demo_notifications()
         user = get_notification_user(request)

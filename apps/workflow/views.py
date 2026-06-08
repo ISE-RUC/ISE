@@ -5,45 +5,46 @@ from django.views import View
 from django.views.generic import TemplateView
 from datetime import datetime
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+
 from apps.workflow.models import (
     WorkflowTemplate, WorkflowStep, WorkflowInstance, WorkflowStepRecord
 )
 from apps.users.models import User
 
 
-class SelectView(TemplateView):
+class SelectView(LoginRequiredMixin, TemplateView):
     """选择端页面"""
     template_name = 'workflow/select.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
-        context['is_admin'] = user.is_authenticated and user.role in (User.ROLE_ADMIN, User.ROLE_LEADER)
+        context['is_admin'] = user.role in (User.ROLE_ADMIN, User.ROLE_LEADER)
         return context
 
 
-class StudentView(TemplateView):
+class StudentView(LoginRequiredMixin, TemplateView):
     """学生端 - 查看自己的流程"""
     template_name = 'workflow/student.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
-        instances = []
+        instances = WorkflowInstance.objects.filter(user=user).select_related(
+            'template', 'current_step'
+        ).order_by('-created_at')
         templates = WorkflowTemplate.objects.all()
-        if user.is_authenticated:
-            instances = WorkflowInstance.objects.filter(user=user).select_related(
-                'template', 'current_step'
-            ).order_by('-created_at')
+        
         context.update({
-            'student': user if user.is_authenticated else None,
+            'student': user,
             'instances': instances,
             'templates': templates,
         })
         return context
 
 
-class StudentDetailView(TemplateView):
+class StudentDetailView(LoginRequiredMixin, TemplateView):
     """学生端 - 流程详情"""
     template_name = 'workflow/student_detail.html'
 
@@ -58,8 +59,8 @@ class StudentDetailView(TemplateView):
         )
 
         # 权限检查：只能查看自己的流程
-        if user.is_authenticated and instance.user != user:
-            messages.error(context.get('request', None), '您没有权限查看此流程。')
+        if instance.user != user:
+            messages.error(self.request, '您没有权限查看此流程。')
             return context
 
         step_records = WorkflowStepRecord.objects.filter(
@@ -96,7 +97,7 @@ class StudentDetailView(TemplateView):
         return context
 
 
-class AdminView(TemplateView):
+class AdminView(LoginRequiredMixin, TemplateView):
     """管理端 - 管理流程"""
     template_name = 'workflow/admin.html'
 
@@ -105,7 +106,7 @@ class AdminView(TemplateView):
         user = self.request.user
 
         # 权限检查
-        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        if user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
             context['no_permission'] = True
             context['templates'] = []
             context['instances'] = []
@@ -123,7 +124,7 @@ class AdminView(TemplateView):
         return context
 
 
-class AdminDetailView(TemplateView):
+class AdminDetailView(LoginRequiredMixin, TemplateView):
     """管理端 - 流程详情"""
     template_name = 'workflow/admin_detail.html'
 
@@ -133,7 +134,7 @@ class AdminDetailView(TemplateView):
         pk = kwargs.get('pk')
 
         # 权限检查
-        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        if user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
             context['no_permission'] = True
             return context
 
@@ -176,11 +177,11 @@ class AdminDetailView(TemplateView):
         return context
 
 
-class CreateTemplateView(View):
+class CreateTemplateView(LoginRequiredMixin, View):
     """创建流程模板"""
     def post(self, request):
         user = request.user
-        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        if user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
             messages.error(request, '您没有权限执行此操作。')
             return redirect('workflow:select')
 
@@ -213,13 +214,10 @@ class CreateTemplateView(View):
         return redirect('workflow:admin')
 
 
-class CreateInstanceView(View):
+class CreateInstanceView(LoginRequiredMixin, View):
     """创建流程实例（学生发起流程）"""
     def post(self, request):
         user = request.user
-        if not user.is_authenticated:
-            messages.error(request, '请先登录。')
-            return redirect('workflow:select')
 
         template_id = request.POST.get('template_id')
         title = request.POST.get('title', '').strip()
@@ -278,11 +276,11 @@ class CreateInstanceView(View):
         return redirect('workflow:student_detail', pk=instance.pk)
 
 
-class ReviewStepView(View):
+class ReviewStepView(LoginRequiredMixin, View):
     """审批流程步骤"""
     def post(self, request, pk):
         user = request.user
-        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        if user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
             messages.error(request, '您没有权限执行此操作。')
             return redirect('workflow:select')
 
@@ -333,11 +331,11 @@ class ReviewStepView(View):
         return redirect('workflow:admin_detail', pk=pk)
 
 
-class DeleteTemplateView(View):
+class DeleteTemplateView(LoginRequiredMixin, View):
     """删除流程模板"""
     def post(self, request, pk):
         user = request.user
-        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        if user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
             messages.error(request, '您没有权限执行此操作。')
             return redirect('workflow:select')
 
@@ -348,11 +346,11 @@ class DeleteTemplateView(View):
         return redirect('workflow:admin')
 
 
-class DeleteInstanceView(View):
+class DeleteInstanceView(LoginRequiredMixin, View):
     """删除流程实例"""
     def post(self, request, pk):
         user = request.user
-        if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
+        if user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
             messages.error(request, '您没有权限执行此操作。')
             return redirect('workflow:select')
 
