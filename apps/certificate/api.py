@@ -10,7 +10,6 @@ from .views import (
     build_request_rows,
     build_timeline,
     create_request,
-    ensure_demo_user,
     get_request_or_404,
     get_student_profile,
     get_status_payload,
