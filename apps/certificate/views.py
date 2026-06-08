@@ -1,7 +1,10 @@
+import os
 from datetime import timedelta
 from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.base import ContentFile
@@ -16,6 +19,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -102,18 +106,34 @@ PDF_FONT_NAME = "Helvetica"
 
 def register_pdf_font():
     global PDF_FONT_NAME
+    env_font_path = os.getenv("PDF_CHINESE_FONT_PATH")
+    font_dir = Path(settings.BASE_DIR) / "static" / "fonts"
     candidates = [
+        env_font_path,
+        font_dir / "NotoSansCJKsc-Regular.otf",
+        font_dir / "NotoSansCJK-Regular.ttc",
+        font_dir / "SourceHanSansSC-Regular.otf",
         "C:/Windows/Fonts/msyh.ttc",
         "C:/Windows/Fonts/simhei.ttf",
         "C:/Windows/Fonts/simsun.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/opentype/adobe-source-han-sans/SourceHanSansSC-Regular.otf",
     ]
     for font_path in candidates:
+        if not font_path or not Path(font_path).exists():
+            continue
         try:
             pdfmetrics.registerFont(TTFont("CertificateChinese", font_path))
             PDF_FONT_NAME = "CertificateChinese"
             return
         except Exception:
             continue
+    pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    PDF_FONT_NAME = "STSong-Light"
 
 
 
