@@ -1,11 +1,9 @@
 import json
 
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
 from ninja import Router, Schema
-from ninja.security import django_auth
 
 from .keyword.service import QaKeywordService
 from utils.response import error, success
@@ -195,6 +193,8 @@ def _switch_payload(request, cid: str) -> dict | None:
     }
 
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+
 class IndexView(LoginRequiredMixin, TemplateView):
     template_name = "qa/index.html"
 
@@ -263,7 +263,7 @@ class SwitchConversationView(LoginRequiredMixin, View):
         return JsonResponse(success(data=payload))
 
 
-@router.post("/chat", auth=django_auth)
+@router.post("/chat")
 def api_chat(request, payload: ChatIn):
     message = (payload.message or "").strip()
     if not message:
@@ -271,17 +271,17 @@ def api_chat(request, payload: ChatIn):
     return success(data=_chat_payload(request, message))
 
 
-@router.post("/new", auth=django_auth)
+@router.post("/new")
 def api_new(request):
     return success(data=_new_payload(request))
 
 
-@router.post("/reset", auth=django_auth)
+@router.post("/reset")
 def api_reset(request):
     return success(data=_reset_payload(request))
 
 
-@router.post("/switch", auth=django_auth)
+@router.post("/switch")
 def api_switch(request, payload: SwitchIn):
     cid = (payload.conversation_id or "").strip()
     if not cid:
