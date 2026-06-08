@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 from ninja import Router, Schema
+from ninja.security import django_auth
 from typing import Optional
 
 from apps.profile.models import Honor
@@ -161,7 +162,7 @@ class DeleteHonorView(LoginRequiredMixin, View):
         return redirect('profile:admin')
 
 
-@router.get('/overview')
+@router.get('/overview', auth=django_auth)
 def api_overview(request):
     user = request.user
     honors = []
@@ -179,7 +180,7 @@ def api_overview(request):
     })
 
 
-@router.get('/all')
+@router.get('/all', auth=django_auth)
 def api_all_honors(request):
     user = request.user
     if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
@@ -192,7 +193,7 @@ def api_all_honors(request):
     })
 
 
-@router.post('/honor')
+@router.post('/honor', auth=django_auth)
 def api_create_honor(request, payload: dict):
     user = request.user
     if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
@@ -225,7 +226,7 @@ def api_create_honor(request, payload: dict):
     return success(data=_serialize_honor(honor), msg=f'已录入荣誉：{title}')
 
 
-@router.delete('/honor/{pk}')
+@router.delete('/honor/{pk}', auth=django_auth)
 def api_delete_honor(request, pk: int):
     user = request.user
     if not user.is_authenticated or user.role not in (User.ROLE_ADMIN, User.ROLE_LEADER):
