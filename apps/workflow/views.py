@@ -6,8 +6,6 @@ from django.views import View
 from django.views.generic import TemplateView
 from datetime import datetime
 
-from django.contrib.auth.mixins import LoginRequiredMixin
-
 from apps.workflow.models import (
     WorkflowTemplate, WorkflowStep, WorkflowInstance, WorkflowStepRecord
 )
@@ -245,6 +243,8 @@ class CreateInstanceView(LoginRequiredMixin, View):
         if deadline:
             try:
                 deadline_dt = datetime.strptime(deadline, '%Y-%m-%dT%H:%M')
+                # 将 naive datetime 转换为当前时区感知时间
+                deadline_dt = timezone.make_aware(deadline_dt, timezone.get_current_timezone())
                 # 验证日期合理性：不能早于2000年，不能晚于2100年
                 if deadline_dt.year < 2000 or deadline_dt.year > 2100:
                     messages.error(request, '截止时间不合理，请输入有效的截止时间。')
