@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -10,7 +11,11 @@ from ninja import Router, Schema
 from ninja.security import django_auth
 
 from apps.party.services.profile import ensure_party_profile_for_user
-from apps.users.forms import LoginForm, StudentRegisterForm
+from apps.users.forms import (
+    LoginForm,
+    StudentRegisterForm,
+    validate_account_identifier,
+)
 from apps.users.models import User
 from apps.workflow.models import WorkflowInstance, WorkflowStepRecord
 from apps.notification.views import get_home_notification_summary
@@ -367,8 +372,11 @@ def api_admin_create_user(request, payload: AdminCreateUserIn):
         return error(msg=role_error, code=400)
 
     username = (payload.username or "").strip()
-    student_id = (payload.student_id or "").strip()
-    employee_id = (payload.employee_id or "").strip()
+    try:
+        student_id = validate_account_identifier(payload.student_id, "学号")
+        employee_id = validate_account_identifier(payload.employee_id, "教职工号")
+    except ValidationError as exc:
+        return error(msg=exc.messages[0], code=400)
 
     if not username:
         return error(msg="用户名不能为空", code=400)

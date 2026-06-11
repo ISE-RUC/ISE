@@ -117,6 +117,36 @@ class UserAuthViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "该身份必须填写教职工号")
 
+    def test_register_rejects_chinese_student_id(self):
+        response = self.client.post(
+            reverse("users:register"),
+            {
+                "role": User.ROLE_STUDENT,
+                "real_name": "测试学生",
+                "student_id": "学生001",
+                "employee_id": "",
+                "password1": "party1234",
+                "password2": "party1234",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "学号只能使用英文字母和数字")
+
+    def test_register_rejects_chinese_employee_id(self):
+        response = self.client.post(
+            reverse("users:register"),
+            {
+                "role": User.ROLE_ADMIN,
+                "real_name": "测试老师",
+                "student_id": "",
+                "employee_id": "老师001",
+                "password1": "party1234",
+                "password2": "party1234",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "教职工号只能使用英文字母和数字")
+
     def test_logout_clears_session(self):
         self.client.force_login(self.student)
         response = self.client.post(reverse("users:logout"))
@@ -167,6 +197,17 @@ class UserAuthViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         user = User.objects.get(employee_id="T2026002")
         self.assertEqual(user.role, User.ROLE_ADMIN)
+
+    def test_api_register_rejects_chinese_student_id(self):
+        response = self.client.post(
+            "/api/users/register",
+            data='{"role":4,"real_name":"接口同学","student_id":"学生abc123","employee_id":"","password1":"party1234","password2":"party1234"}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["code"], 400)
+        self.assertEqual(payload["msg"], "学号只能使用英文字母和数字")
 
     def test_api_logout(self):
         self.client.force_login(self.student)
@@ -260,6 +301,25 @@ class UserAuthViewTests(TestCase):
         self.assertEqual(created_user.role, User.ROLE_CADRE)
         profile = PartyMemberStatus.objects.get(user=created_user)
         self.assertEqual(profile.created_by, admin_user)
+
+    def test_admin_create_rejects_chinese_employee_id(self):
+        admin_user = User.objects.create_user(
+            username="teacher051",
+            employee_id="T0051",
+            password="party1234",
+            real_name="管理老师",
+            role=User.ROLE_ADMIN,
+        )
+        self.client.force_login(admin_user)
+        response = self.client.post(
+            "/api/users/admin/create",
+            data='{"username":"teacher_new","password":"party1234","real_name":"新老师","role":2,"student_id":"","employee_id":"老师001"}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["code"], 400)
+        self.assertEqual(payload["msg"], "教职工号只能使用英文字母和数字")
 
     def test_admin_cannot_create_leader_user(self):
         admin_user = User.objects.create_user(
