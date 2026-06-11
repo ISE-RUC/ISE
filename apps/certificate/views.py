@@ -347,7 +347,7 @@ def get_student_profile(student):
     }
 
 
-def get_status_payload(request_obj):
+def get_status_payload(request_obj, viewer=None):
     meta = STATUS_META[request_obj.status]
     window = "--"
     if request_obj.status == CertificateRequest.STATUS_APPROVED_OBSERVING and request_obj.revoke_deadline:
@@ -369,14 +369,20 @@ def get_status_payload(request_obj):
         if request_obj.status == CertificateRequest.STATUS_COMPLETED:
             pdf_state = "正式文件已生成"
 
+    is_self_applicant = bool(
+        viewer
+        and viewer.is_authenticated
+        and request_obj.applicant_id == viewer.id
+    )
     can_preview = bool(request_obj.generated_pdf and not request_obj.is_pdf_void)
     can_download = bool(
         request_obj.generated_pdf
         and not request_obj.is_pdf_void
         and request_obj.status == CertificateRequest.STATUS_COMPLETED
+        and is_self_applicant
     )
-    can_revoke = request_obj.status == CertificateRequest.STATUS_APPROVED_OBSERVING
-    can_resubmit = request_obj.status in {
+    can_revoke = is_self_applicant and request_obj.status == CertificateRequest.STATUS_APPROVED_OBSERVING
+    can_resubmit = is_self_applicant and request_obj.status in {
         CertificateRequest.STATUS_MATERIAL_REJECTED,
         CertificateRequest.STATUS_REJECTED,
         CertificateRequest.STATUS_REVOKED,
@@ -465,7 +471,7 @@ def build_request_rows(student):
     rows = []
     queryset = CertificateRequest.objects.filter(applicant=student).order_by("-created_at", "-id")
     for item in queryset:
-        status_payload = get_status_payload(item)
+        status_payload = get_status_payload(item, viewer=student)
         rows.append(
             {
                 "id": item.id,
@@ -584,7 +590,7 @@ class ListView(LoginRequiredMixin, TemplateView):
             
         rows = []
         for item in queryset:
-            status_payload = get_status_payload(item)
+            status_payload = get_status_payload(item, viewer=user)
             rows.append(
                 {
                     "id": item.id,
@@ -653,7 +659,7 @@ class DetailView(LoginRequiredMixin, TemplateView):
 
         context["student_profile"] = get_student_profile(request_obj.applicant)
         context["request_obj"] = request_obj
-        context["active_application"] = get_status_payload(request_obj)
+        context["active_application"] = get_status_payload(request_obj, viewer=user)
         context["selected_certificate_type"] = option_id_from_name(request_obj.cert_type)
         context["certificate_types"] = [{"id": key, **value} for key, value in CERTIFICATE_OPTIONS.items()]
         context["materials"] = [
@@ -695,6 +701,10 @@ class ResubmitView(LoginRequiredMixin, View):
         user = request.user
         request_obj = get_request_or_404(user, pk)
 
+        if request_obj.applicant_id != user.id:
+            messages.warning(request, "仅申请提交人可重新提交该申请。")
+            return redirect("certificate:detail", pk=pk)
+
         if request_obj.status not in {
             CertificateRequest.STATUS_MATERIAL_REJECTED,
             CertificateRequest.STATUS_REJECTED,
@@ -719,6 +729,9 @@ class RevokeView(LoginRequiredMixin, View):
     def post(self, request, pk):
         user = request.user
         request_obj = get_request_or_404(user, pk)
+        if request_obj.applicant_id != user.id:
+            messages.warning(request, "仅申请提交人可撤回该申请。")
+            return redirect("certificate:detail", pk=pk)
         if request_obj.status != CertificateRequest.STATUS_APPROVED_OBSERVING:
             messages.warning(request, "当前状态下不能撤回。")
             return redirect("certificate:detail", pk=pk)
@@ -737,6 +750,9 @@ class DownloadView(LoginRequiredMixin, View):
     def get(self, request, pk):
         user = request.user
         request_obj = get_request_or_404(user, pk)
+        if request_obj.applicant_id != user.id:
+            messages.warning(request, "仅申请提交人可下载正式文件。")
+            return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
         if request_obj.status != CertificateRequest.STATUS_COMPLETED:
             messages.warning(request, "申请尚未全流程办结，只能查看预览稿，暂不能下载正式文件。")
             return HttpResponseRedirect(reverse("certificate:detail", args=[pk]))
