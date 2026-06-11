@@ -1,9 +1,21 @@
+import re
+
 from django import forms
 from django.contrib.auth import authenticate
 from django.db import transaction
 
 from apps.party.services.profile import ensure_party_profile_for_user
 from apps.users.models import User
+
+
+ALPHANUMERIC_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9]+$")
+
+
+def validate_account_identifier(value, label):
+    normalized = (value or "").strip()
+    if normalized and not ALPHANUMERIC_IDENTIFIER_RE.fullmatch(normalized):
+        raise forms.ValidationError(f"{label}只能使用英文字母和数字")
+    return normalized
 
 
 class LoginForm(forms.Form):
@@ -89,6 +101,12 @@ class StudentRegisterForm(forms.ModelForm):
         if role not in {choice[0] for choice in User.ROLE_CHOICES}:
             raise forms.ValidationError("请选择有效的身份类型")
         return role
+
+    def clean_student_id(self):
+        return validate_account_identifier(self.cleaned_data.get("student_id"), "学号")
+
+    def clean_employee_id(self):
+        return validate_account_identifier(self.cleaned_data.get("employee_id"), "教职工号")
 
     def clean(self):
         cleaned_data = super().clean()
