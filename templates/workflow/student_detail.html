@@ -11,8 +11,8 @@
             <div class="role-tag">
                 <div class="small">状态</div>
                 <div class="role">
-                    <span class="pill {% if instance.status == 'completed' %}pill-success{% elif instance.status == 'rejected' %}pill-warning{% else %}pill-primary{% endif %}">
-                        {{ instance.get_status_display }}
+                    <span class="pill {% if instance.effective_status == 'completed' %}pill-success{% elif instance.effective_status == 'rejected' %}pill-warning{% elif instance.effective_status == 'expired' %}pill-warning{% else %}pill-primary{% endif %}">
+                        {{ instance.effective_status_display }}
                     </span>
                 </div>
             </div>
