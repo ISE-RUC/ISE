@@ -1086,3 +1086,375 @@ main {
     .qa-empty-title{font-size:26px}
 
 }
+
+/* =========================================================
+   RUC-like login visual v2 - CSS only, safer version
+   只追加到 main.css 最后即可。
+   这版修掉 v1 的大字穿帮问题：不再使用巨型 fixed 文案压到卡片后面。
+   ========================================================= */
+
+:root{
+    --primary:#8f001d;
+    --primary-soft:#fff4f2;
+    --bg:#f5efe6;
+    --card:#ffffff;
+    --text:#221815;
+    --muted:#7b6f66;
+    --line:#e3d5c8;
+    --soft:#fbf7f1;
+    --ruc-red:#8f001d;
+    --ruc-red-light:#a6192e;
+    --ruc-red-dark:#5d0014;
+    --ruc-gold:#c8a45d;
+    --ruc-cream:#f8f1e8;
+}
+
+/* 基础气质：保留现代系统可读性，不强行全站宋体 */
+html,body{
+    background:#f5efe6 !important;
+    color:var(--text) !important;
+    font-family:"Microsoft YaHei","PingFang SC","Helvetica Neue",Arial,sans-serif !important;
+}
+
+/* 顶部：人大官网式深红条 */
+header{
+    background:linear-gradient(90deg,#640016 0%,#960020 52%,#760019 100%) !important;
+    color:#fff !important;
+    box-shadow:none !important;
+    border-bottom:1px solid rgba(200,164,93,.45);
+}
+
+.topbar-inner{
+    max-width:1440px !important;
+    min-height:92px;
+    padding:16px 36px !important;
+}
+
+.brand{
+    gap:18px !important;
+}
+
+.brand-logo{
+    width:72px !important;
+    height:72px !important;
+    border-radius:50% !important;
+    background:#fff !important;
+    padding:4px;
+}
+
+.brand-title{
+    color:#fff !important;
+    font-family:"Songti SC","SimSun","Noto Serif SC","Microsoft YaHei",serif !important;
+    font-size:28px !important;
+    font-weight:900 !important;
+    letter-spacing:.08em !important;
+}
+
+.brand-sub{
+    color:rgba(255,255,255,.82) !important;
+    font-size:13px !important;
+    letter-spacing:.08em !important;
+}
+
+.top-actions .btn,
+header .btn{
+    border:1px solid rgba(255,255,255,.36) !important;
+    background:rgba(255,255,255,.08) !important;
+    color:#fff !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+}
+
+.top-actions .btn:hover,
+header .btn:hover{
+    background:#fff !important;
+    color:var(--ruc-red) !important;
+}
+
+/* =========================================================
+   Login page only
+   匹配你当前 login.html 里的内联 style 容器
+   ========================================================= */
+
+main:has(> div[style*="max-width: 400px"]){
+    width:100vw !important;
+    max-width:none !important;
+    min-height:calc(100vh - 92px) !important;
+    margin:0 !important;
+    margin-left:calc(50% - 50vw) !important;
+    padding:0 !important;
+    position:relative;
+    overflow:hidden;
+
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+
+    background:
+        linear-gradient(90deg, rgba(74,0,16,.98) 0%, rgba(111,0,24,.96) 42%, rgba(142,0,30,.82) 100%),
+        radial-gradient(circle at 72% 28%, rgba(255,255,255,.14), transparent 24%),
+        linear-gradient(135deg,#5d0014 0%,#8f001d 58%,#b55b45 100%) !important;
+}
+
+/* 细网格，类似官网大背景的秩序感，但降低存在感 */
+main:has(> div[style*="max-width: 400px"])::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+        linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+    background-size:132px 132px;
+    opacity:.55;
+    pointer-events:none;
+}
+
+/* 左下角淡淡的 RUC，不进入卡片 */
+main:has(> div[style*="max-width: 400px"])::after{
+    content:"RUC";
+    position:absolute;
+    left:7vw;
+    bottom:-56px;
+    color:rgba(255,255,255,.075);
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(120px, 18vw, 250px);
+    font-weight:900;
+    line-height:1;
+    letter-spacing:.04em;
+    pointer-events:none;
+}
+
+/* 登录卡：干净、窄一些，不让背景文字穿进去 */
+main > div[style*="max-width: 400px"]{
+    position:relative !important;
+    z-index:2 !important;
+    width:430px !important;
+    max-width:calc(100vw - 40px) !important;
+
+    margin:64px max(48px, calc((100vw - 1280px) / 2 + 24px)) 64px auto !important;
+    padding:44px 40px 36px !important;
+
+    background:rgba(255,255,255,.97) !important;
+    border-radius:0 !important;
+    border:1px solid rgba(255,255,255,.72) !important;
+    border-top:5px solid var(--ruc-gold) !important;
+    box-shadow:0 28px 72px rgba(45,0,10,.34) !important;
+    overflow:hidden !important;
+}
+
+/* 关键修复：彻底取消上一版给登录卡加的巨大 before/after */
+main > div[style*="max-width: 400px"]::before,
+main > div[style*="max-width: 400px"]::after{
+    content:none !important;
+    display:none !important;
+}
+
+/* 卡片内增加很淡的竖向红色气质，不压文字 */
+main > div[style*="max-width: 400px"]{
+    background:
+        linear-gradient(90deg, rgba(143,0,29,.035), transparent 38%),
+        rgba(255,255,255,.97) !important;
+}
+
+/* 标题 */
+main > div[style*="max-width: 400px"] h1{
+    margin:0 0 10px !important;
+    padding-top:18px !important;
+    text-align:left !important;
+    color:#241916 !important;
+    font-family:"Songti SC","SimSun","Noto Serif SC","Microsoft YaHei",serif !important;
+    font-size:34px !important;
+    line-height:1.2 !important;
+    font-weight:900 !important;
+    letter-spacing:.08em !important;
+    position:relative;
+}
+
+/* 小红字：统一身份认证 */
+main > div[style*="max-width: 400px"] h1::before{
+    content:"统一身份认证";
+    display:block;
+    margin-bottom:10px;
+    color:var(--ruc-red) !important;
+    font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif !important;
+    font-size:13px;
+    font-weight:900;
+    letter-spacing:.18em;
+}
+
+/* 金色短线 */
+main > div[style*="max-width: 400px"] h1::after{
+    content:"";
+    position:absolute;
+    left:0;
+    top:0;
+    width:96px;
+    height:2px;
+    background:linear-gradient(90deg,var(--ruc-gold),transparent);
+}
+
+/* 提示文案 */
+main > div[style*="max-width: 400px"] > p:first-of-type{
+    margin:16px 0 30px !important;
+    text-align:left !important;
+    color:#7b6f66 !important;
+    font-size:14px !important;
+    line-height:1.85 !important;
+}
+
+/* 表单 */
+main > div[style*="max-width: 400px"] form > div{
+    margin-bottom:20px !important;
+}
+
+main > div[style*="max-width: 400px"] label{
+    display:block !important;
+    margin-bottom:8px !important;
+    color:#33241f !important;
+    font-size:14px !important;
+    font-weight:800 !important;
+}
+
+main > div[style*="max-width: 400px"] input[type="text"],
+main > div[style*="max-width: 400px"] input[type="password"]{
+    width:100% !important;
+    height:50px !important;
+    padding:0 14px !important;
+    border:1px solid #d8c8ba !important;
+    border-radius:0 !important;
+    outline:none !important;
+    background:#fff !important;
+    color:#201510 !important;
+    font-size:15px !important;
+    box-shadow:none !important;
+    transition:.18s ease !important;
+}
+
+main > div[style*="max-width: 400px"] input[type="text"]:focus,
+main > div[style*="max-width: 400px"] input[type="password"]:focus{
+    border-color:var(--ruc-red) !important;
+    box-shadow:0 0 0 3px rgba(143,0,29,.12) !important;
+}
+
+/* 错误 */
+main > div[style*="max-width: 400px"] div[style*="color: #b91c1c"],
+main > div[style*="max-width: 400px"] div[style*="color:#b91c1c"]{
+    color:#a20d23 !important;
+    margin-top:8px !important;
+    font-size:13px !important;
+}
+
+main > div[style*="max-width: 400px"] p[style*="color: #721c24"],
+main > div[style*="max-width: 400px"] p[style*="color:#721c24"]{
+    margin:0 0 18px !important;
+    padding:12px 14px !important;
+    color:#8a1024 !important;
+    background:#fff1f3 !important;
+    border-radius:0 !important;
+    border-left:4px solid var(--ruc-red) !important;
+    font-size:14px !important;
+    line-height:1.7 !important;
+}
+
+/* 按钮 */
+main > div[style*="max-width: 400px"] button[type="submit"]{
+    width:100% !important;
+    height:54px !important;
+    padding:0 !important;
+    border:none !important;
+    border-radius:0 !important;
+    cursor:pointer !important;
+    background:linear-gradient(90deg,#760019 0%,#a6192e 100%) !important;
+    color:#fff !important;
+    font-size:16px !important;
+    font-weight:900 !important;
+    letter-spacing:.16em !important;
+    box-shadow:0 14px 28px rgba(143,0,29,.22) !important;
+    transition:.2s ease !important;
+}
+
+main > div[style*="max-width: 400px"] button[type="submit"]:hover{
+    filter:brightness(1.06);
+    transform:translateY(-1px);
+}
+
+/* 注册链接 */
+main > div[style*="max-width: 400px"] > p:last-child{
+    margin-top:24px !important;
+    text-align:center !important;
+    color:#7b6f66 !important;
+    font-size:14px !important;
+}
+
+main > div[style*="max-width: 400px"] a{
+    color:var(--ruc-red) !important;
+    font-weight:900 !important;
+    text-decoration:none !important;
+}
+
+main > div[style*="max-width: 400px"] a:hover{
+    text-decoration:underline !important;
+}
+
+/* 其它页面略微官网化，但不大面积破坏布局 */
+.card,
+.action-item,
+.summary-item,
+.party-page-block,
+.card-subtle{
+    border-radius:0 !important;
+}
+
+.btn{
+    border-radius:0 !important;
+}
+
+.btn-primary{
+    background:linear-gradient(90deg,#760019,#a6192e) !important;
+}
+
+/* 移动端 */
+@media (max-width: 900px){
+    main:has(> div[style*="max-width: 400px"]){
+        justify-content:center;
+        padding:40px 18px !important;
+    }
+
+    main > div[style*="max-width: 400px"]{
+        margin:0 !important;
+        width:min(430px,100%) !important;
+    }
+
+    main:has(> div[style*="max-width: 400px"])::after{
+        left:50%;
+        transform:translateX(-50%);
+        font-size:140px;
+    }
+
+    .topbar-inner{
+        padding:14px 20px !important;
+    }
+}
+
+@media (max-width: 720px){
+    .brand-logo{
+        width:58px !important;
+        height:58px !important;
+    }
+
+    .brand-title{
+        font-size:20px !important;
+    }
+
+    .brand-sub{
+        font-size:11px !important;
+    }
+
+    main > div[style*="max-width: 400px"]{
+        padding:34px 24px 28px !important;
+    }
+
+    main > div[style*="max-width: 400px"] h1{
+        font-size:30px !important;
+    }
+}
