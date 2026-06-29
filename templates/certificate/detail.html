@@ -54,7 +54,7 @@
         </div>
 
         {% if active_application.can_resubmit %}
-        <form class="certificate-form" method="post" action="{{ resubmit_url }}" data-api-form data-api-url="/api/certificates/{{ request_obj.id }}/resubmit">
+        <form class="certificate-form" method="post" action="{{ resubmit_url }}" data-api-form data-api-url="/api/certificate/{{ request_obj.id }}/resubmit">
             {% csrf_token %}
             <div class="certificate-section">
                 <div class="card-head">
@@ -127,7 +127,7 @@
                 <a href="{{ download_url }}" class="btn btn-primary">下载正式文件</a>
                 {% endif %}
                 {% if active_application.can_revoke %}
-                <form method="post" action="{{ revoke_url }}" data-api-action data-api-url="/api/certificates/{{ request_obj.id }}/revoke" style="display:inline-block;">
+                <form method="post" action="{{ revoke_url }}" data-api-action data-api-url="/api/certificate/{{ request_obj.id }}/revoke" style="display:inline-block;">
                     {% csrf_token %}
                     <button class="btn" type="submit">撤回申请</button>
                 </form>

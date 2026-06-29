@@ -619,6 +619,12 @@ class ListView(LoginRequiredMixin, TemplateView):
 class CreateView(LoginRequiredMixin, TemplateView):
     template_name = "certificate/create.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.is_admin_or_above():
+            messages.error(request, "管理员或学院领导无法提交证明申请。")
+            return redirect("certificate:index")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
