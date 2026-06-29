@@ -12,5 +12,7 @@ urlpatterns = [
     path("<int:pk>/preview/", views.PreviewView.as_view(), name="preview"),
     path("<int:pk>/resubmit/", views.ResubmitView.as_view(), name="resubmit"),
     path("<int:pk>/revoke/", views.RevokeView.as_view(), name="revoke"),
+    path("<int:pk>/approve/", views.AdminApproveView.as_view(), name="approve"),
+    path("<int:pk>/reject/", views.AdminRejectView.as_view(), name="reject"),
     path("<int:pk>/download/", views.DownloadView.as_view(), name="download"),
 ]

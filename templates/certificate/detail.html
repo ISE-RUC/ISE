@@ -127,11 +127,33 @@
                 <a href="{{ download_url }}" class="btn btn-primary">下载正式文件</a>
                 {% endif %}
                 {% if active_application.can_revoke %}
-                <form method="post" action="{{ revoke_url }}" data-api-action data-api-url="/api/certificates/{{ request_obj.id }}/revoke">
+                <form method="post" action="{{ revoke_url }}" data-api-action data-api-url="/api/certificates/{{ request_obj.id }}/revoke" style="display:inline-block;">
                     {% csrf_token %}
                     <button class="btn" type="submit">撤回申请</button>
                 </form>
                 {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if is_admin and active_application.status_key == 'pending_review' %}
+        <div class="certificate-section">
+            <div class="card-head">
+                <h2>管理员审批</h2>
+                <span class="pill pill-warning">待处理</span>
+            </div>
+            <div class="certificate-form-grid" style="margin-bottom:16px;">
+                <form method="post" action="{% url 'certificate:approve' request_obj.id %}" style="display:inline-block;">
+                    {% csrf_token %}
+                    <button class="btn btn-primary" type="submit">审批通过 (生成文件)</button>
+                </form>
+                
+                <form method="post" action="{% url 'certificate:reject' request_obj.id %}" style="display:inline-block; width:100%; margin-top:16px;">
+                    {% csrf_token %}
+                    <label class="certificate-field-label" for="rejection_reason">打回意见</label>
+                    <textarea id="rejection_reason" name="rejection_reason" class="certificate-textarea" rows="3" required placeholder="请填写打回原因..."></textarea>
+                    <button class="btn" type="submit" style="margin-top:8px; border-color: #ef4444; color: #ef4444;">打回申请</button>
+                </form>
             </div>
         </div>
         {% endif %}

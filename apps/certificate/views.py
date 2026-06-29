@@ -350,7 +350,7 @@ def get_student_profile(student):
     }
 
 
-def get_status_payload(request_obj):
+def get_status_payload(request_obj, user=None):
     meta = STATUS_META[request_obj.status]
     window = "--"
     if request_obj.status == CertificateRequest.STATUS_APPROVED_OBSERVING and request_obj.revoke_deadline:
@@ -378,8 +378,11 @@ def get_status_payload(request_obj):
         and not request_obj.is_pdf_void
         and request_obj.status == CertificateRequest.STATUS_COMPLETED
     )
-    can_revoke = request_obj.status == CertificateRequest.STATUS_APPROVED_OBSERVING
-    can_resubmit = request_obj.status in {
+    
+    is_applicant = user is None or request_obj.applicant_id == user.id
+
+    can_revoke = is_applicant and request_obj.status == CertificateRequest.STATUS_APPROVED_OBSERVING
+    can_resubmit = is_applicant and request_obj.status in {
         CertificateRequest.STATUS_MATERIAL_REJECTED,
         CertificateRequest.STATUS_REJECTED,
         CertificateRequest.STATUS_REVOKED,
@@ -468,7 +471,7 @@ def build_request_rows(student):
     rows = []
     queryset = CertificateRequest.objects.filter(applicant=student).order_by("-created_at", "-id")
     for item in queryset:
-        status_payload = get_status_payload(item)
+        status_payload = get_status_payload(item, student)
         rows.append(
             {
                 "id": item.id,
@@ -587,7 +590,7 @@ class ListView(LoginRequiredMixin, TemplateView):
             
         rows = []
         for item in queryset:
-            status_payload = get_status_payload(item)
+            status_payload = get_status_payload(item, user)
             rows.append(
                 {
                     "id": item.id,
@@ -656,7 +659,7 @@ class DetailView(LoginRequiredMixin, TemplateView):
 
         context["student_profile"] = get_student_profile(request_obj.applicant)
         context["request_obj"] = request_obj
-        context["active_application"] = get_status_payload(request_obj)
+        context["active_application"] = get_status_payload(request_obj, user)
         context["selected_certificate_type"] = option_id_from_name(request_obj.cert_type)
         context["certificate_types"] = [{"id": key, **value} for key, value in CERTIFICATE_OPTIONS.items()]
         context["materials"] = [
@@ -690,6 +693,7 @@ class DetailView(LoginRequiredMixin, TemplateView):
         context["preview_url"] = reverse("certificate:preview", args=[request_obj.id])
         context["resubmit_url"] = reverse("certificate:resubmit", args=[request_obj.id])
         context["revoke_url"] = reverse("certificate:revoke", args=[request_obj.id])
+        context["is_admin"] = user.is_admin_or_above()
         return context
 
 
@@ -697,6 +701,10 @@ class ResubmitView(LoginRequiredMixin, View):
     def post(self, request, pk):
         user = request.user
         request_obj = get_request_or_404(user, pk)
+        
+        if request_obj.applicant_id != user.id:
+            messages.error(request, "您无权重新提交该申请。")
+            return redirect("certificate:detail", pk=pk)
 
         if request_obj.status not in {
             CertificateRequest.STATUS_MATERIAL_REJECTED,
@@ -722,6 +730,11 @@ class RevokeView(LoginRequiredMixin, View):
     def post(self, request, pk):
         user = request.user
         request_obj = get_request_or_404(user, pk)
+        
+        if request_obj.applicant_id != user.id:
+            messages.error(request, "您无权撤回该申请。")
+            return redirect("certificate:detail", pk=pk)
+            
         if request_obj.status != CertificateRequest.STATUS_APPROVED_OBSERVING:
             messages.warning(request, "当前状态下不能撤回。")
             return redirect("certificate:detail", pk=pk)
@@ -733,6 +746,58 @@ class RevokeView(LoginRequiredMixin, View):
         request_obj.save(update_fields=["status", "revoked_at", "is_pdf_void", "last_operator", "updated_at"])
         add_log(request_obj, "学生撤回", "学生在观察期内主动撤回申请，原文件作废。", "学生")
         messages.success(request, "申请已撤回，原文件已作废。")
+        return redirect("certificate:detail", pk=pk)
+
+
+class AdminApproveView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        user = request.user
+        if not user.is_admin_or_above():
+            messages.error(request, "无权执行此操作。")
+            return redirect("certificate:index")
+            
+        request_obj = get_object_or_404(CertificateRequest, pk=pk)
+        if request_obj.status != CertificateRequest.STATUS_PENDING_REVIEW:
+            messages.warning(request, "当前状态下不能审批。")
+            return redirect("certificate:detail", pk=pk)
+            
+        request_obj.status = CertificateRequest.STATUS_APPROVED_OBSERVING
+        request_obj.approved_at = timezone.now()
+        request_obj.revoke_deadline = timezone.now() + timedelta(hours=24)
+        request_obj.last_operator = user.real_name or user.username
+        
+        # Generate the formal PDF
+        generate_demo_file(request_obj, request_obj.applicant)
+        
+        request_obj.save(update_fields=["status", "approved_at", "revoke_deadline", "last_operator", "generated_pdf", "is_pdf_void", "updated_at"])
+        add_log(request_obj, "审批通过", "管理员审批通过，生成文件并进入24小时观察期。", user.real_name or user.username)
+        messages.success(request, "审批通过，文件已生成并进入观察期。")
+        return redirect("certificate:detail", pk=pk)
+
+
+class AdminRejectView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        user = request.user
+        if not user.is_admin_or_above():
+            messages.error(request, "无权执行此操作。")
+            return redirect("certificate:index")
+            
+        request_obj = get_object_or_404(CertificateRequest, pk=pk)
+        if request_obj.status != CertificateRequest.STATUS_PENDING_REVIEW:
+            messages.warning(request, "当前状态下不能打回。")
+            return redirect("certificate:detail", pk=pk)
+            
+        reason = request.POST.get("rejection_reason", "").strip()
+        if not reason:
+            messages.warning(request, "必须填写打回意见。")
+            return redirect("certificate:detail", pk=pk)
+            
+        request_obj.status = CertificateRequest.STATUS_REJECTED
+        request_obj.rejection_reason = reason
+        request_obj.last_operator = user.real_name or user.username
+        request_obj.save(update_fields=["status", "rejection_reason", "last_operator", "updated_at"])
+        add_log(request_obj, "审批驳回", f"管理员打回申请，原因：{reason}", user.real_name or user.username)
+        messages.success(request, "已打回申请。")
         return redirect("certificate:detail", pk=pk)
 
 
