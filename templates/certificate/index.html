@@ -19,7 +19,9 @@
                     <div class="role">{{ student_profile.name }}</div>
                 </div>
                 <a href="/" class="btn">返回首页</a>
+                {% if not is_admin %}
                 <a href="{% url 'certificate:create' %}" class="btn btn-primary">新建申请</a>
+                {% endif %}
             </div>
         </div>
 

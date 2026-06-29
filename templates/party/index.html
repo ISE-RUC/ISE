@@ -6,7 +6,7 @@
         <h2>党团事务模块</h2>
         <span class="pill pill-primary">模块入口</span>
     </div>
-    <p class="hero-desc">该模块当前已具备学生端与管理端的最小闭环能力，可用于查看流程进度、提交材料、处理审批、维护规则和执行导入导出。</p>
+    <p class="hero-desc">欢迎使用党团事务模块。学生可在此查看流程进度并提交材料；管理员可进行审批处理、规则维护及成员管理。</p>
     <div class="action-grid">
         <a href="{% if user.is_authenticated %}{% url 'party:party_student:dashboard' %}{% else %}{% url 'users:login' %}?next={% url 'party:party_student:dashboard' %}{% endif %}" class="action-item">
             <h3>学生端</h3>

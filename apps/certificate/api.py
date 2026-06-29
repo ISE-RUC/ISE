@@ -118,6 +118,10 @@ def list_certificates(request):
 @router.post("/", auth=django_auth)
 def create_certificate(request, payload: CertificateSubmitIn):
     student = request.user
+    
+    if student.is_admin_or_above():
+        return error(msg="管理员或学院领导无法提交证明申请。", code=403)
+        
     request_obj, ok = create_request(
         student,
         payload.certificate_type,
