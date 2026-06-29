@@ -1,4 +1,22 @@
-export LLM_API_KEY="你的key"
+智能问答模块运行前需要配置外部大模型环境变量。
+
+建议使用本地环境变量或未提交到仓库的 `.env` 文件，不要把真实密钥写入代码或提交到 Git 仓库。
+
+示例：
+
+export LLM_API_KEY="your_api_key_here"
 export LLM_MODEL="qwen3.5-flash"
 export LLM_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+可选参数：
+
+export LLM_TEMPERATURE="0.2"
+export LLM_TIMEOUT="30"
+export LLM_MAX_RETRIES="1"
+export LLM_INVOKE_RETRIES="3"
+export LLM_BACKOFF_BASE_SECONDS="1"
+export QA_ENABLE_WEB_SEARCH="1"
+
+启动开发服务器：
+
 uv run python manage.py runserver

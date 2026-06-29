@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
 from ninja import Router, Schema
+from ninja.security import django_auth
 
 from .keyword.service import QaKeywordService
 from utils.response import error, success
@@ -12,7 +13,7 @@ from utils.response import error, success
 SESSION_CONVERSATIONS_KEY = "qa_conversations"
 SESSION_ACTIVE_CONVERSATION_KEY = "qa_active_conversation_id"
 
-router = Router()
+router = Router(auth=django_auth)
 
 
 def _bootstrap_message() -> dict:
