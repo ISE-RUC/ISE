@@ -8,13 +8,13 @@ from apps.party.services.profile import ensure_party_profile_for_user
 from apps.users.models import User
 
 
-ALPHANUMERIC_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9]+$")
+DIGITS_ONLY_IDENTIFIER_RE = re.compile(r"^\d+$")
 
 
 def validate_account_identifier(value, label):
     normalized = (value or "").strip()
-    if normalized and not ALPHANUMERIC_IDENTIFIER_RE.fullmatch(normalized):
-        raise forms.ValidationError(f"{label}只能使用英文字母和数字")
+    if normalized and not DIGITS_ONLY_IDENTIFIER_RE.fullmatch(normalized):
+        raise forms.ValidationError(f"{label}只能使用数字")
     return normalized
 
 
