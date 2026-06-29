@@ -1,6 +1,7 @@
 from django.utils import timezone
 from ninja import Router, Schema
 from ninja.security import django_auth
+from django.shortcuts import get_object_or_404
 
 from utils.response import error, success
 
@@ -67,7 +68,7 @@ def _serialize_logs(request_obj):
 
 
 def _serialize_request_detail(request, request_obj):
-    status = get_status_payload(request_obj)
+    status = get_status_payload(request_obj, request.user)
     return {
         "id": request_obj.id,
         "reference": request_obj.reference_no,
@@ -126,7 +127,7 @@ def create_certificate(request, payload: CertificateSubmitIn):
     data = {
         "id": request_obj.id,
         "detail_url": _detail_url(request, request_obj),
-        "status": get_status_payload(request_obj),
+        "status": get_status_payload(request_obj, request.user),
         "request": _serialize_request_detail(request, request_obj),
     }
     if not ok:
@@ -145,6 +146,10 @@ def get_certificate(request, request_id: int):
 def resubmit_certificate(request, request_id: int, payload: CertificateSubmitIn):
     student = request.user
     request_obj = get_request_or_404(student, request_id)
+    
+    if request_obj.applicant_id != student.id:
+        return error(msg="您无权重新提交该申请。", code=403)
+        
     if request_obj.status not in {
         CertificateRequest.STATUS_MATERIAL_REJECTED,
         CertificateRequest.STATUS_REJECTED,
@@ -162,7 +167,7 @@ def resubmit_certificate(request, request_id: int, payload: CertificateSubmitIn)
     data = {
         "id": request_obj.id,
         "detail_url": _detail_url(request, request_obj),
-        "status": get_status_payload(request_obj),
+        "status": get_status_payload(request_obj, request.user),
         "request": _serialize_request_detail(request, request_obj),
     }
     if not ok:
@@ -170,10 +175,78 @@ def resubmit_certificate(request, request_id: int, payload: CertificateSubmitIn)
     return success(data=data, msg="申请已重新提交，当前等待管理员审核。")
 
 
-@router.post("/{request_id}/revoke", auth=django_auth)
+class CertificateRejectIn(Schema):
+    rejection_reason: str
+
+@router.post("/{request_id}/approve", auth=django_auth)
+def approve_certificate(request, request_id: int):
+    user = request.user
+    if not user.is_admin_or_above():
+        return error(msg="无权执行此操作。", code=403)
+        
+    request_obj = get_object_or_404(CertificateRequest, pk=request_id)
+    if request_obj.status != CertificateRequest.STATUS_PENDING_REVIEW:
+        return error(msg="当前状态下不能审批。", code=400)
+        
+    request_obj.status = CertificateRequest.STATUS_APPROVED_OBSERVING
+    request_obj.approved_at = timezone.now()
+    request_obj.revoke_deadline = timezone.now() + timezone.timedelta(hours=24)
+    request_obj.last_operator = user.real_name or user.username
+    
+    from .views import generate_demo_file, add_log
+    generate_demo_file(request_obj, request_obj.applicant)
+    
+    request_obj.save(update_fields=["status", "approved_at", "revoke_deadline", "last_operator", "generated_pdf", "is_pdf_void", "updated_at"])
+    add_log(request_obj, "审批通过", "管理员审批通过，生成文件并进入24小时观察期。", user.real_name or user.username)
+    
+    return success(
+        data={
+            "id": request_obj.id,
+            "detail_url": _detail_url(request, request_obj),
+            "status": get_status_payload(request_obj, request.user),
+            "request": _serialize_request_detail(request, request_obj),
+        },
+        msg="审批通过，文件已生成并进入观察期。",
+    )
+
+@router.post("/{request_id}/reject", auth=django_auth)
+def reject_certificate(request, request_id: int, payload: CertificateRejectIn):
+    user = request.user
+    if not user.is_admin_or_above():
+        return error(msg="无权执行此操作。", code=403)
+        
+    request_obj = get_object_or_404(CertificateRequest, pk=request_id)
+    if request_obj.status != CertificateRequest.STATUS_PENDING_REVIEW:
+        return error(msg="当前状态下不能打回。", code=400)
+        
+    reason = payload.rejection_reason.strip()
+    if not reason:
+        return error(msg="必须填写打回意见。", code=400)
+        
+    request_obj.status = CertificateRequest.STATUS_REJECTED
+    request_obj.rejection_reason = reason
+    request_obj.last_operator = user.real_name or user.username
+    request_obj.save(update_fields=["status", "rejection_reason", "last_operator", "updated_at"])
+    
+    from .views import add_log
+    add_log(request_obj, "审批驳回", f"管理员打回申请，原因：{reason}", user.real_name or user.username)
+    
+    return success(
+        data={
+            "id": request_obj.id,
+            "detail_url": _detail_url(request, request_obj),
+            "status": get_status_payload(request_obj, request.user),
+            "request": _serialize_request_detail(request, request_obj),
+        },
+        msg="已打回申请。",
+    )
 def revoke_certificate(request, request_id: int):
     student = request.user
     request_obj = get_request_or_404(student, request_id)
+    
+    if request_obj.applicant_id != student.id:
+        return error(msg="您无权撤回该申请。", code=403)
+        
     if request_obj.status != CertificateRequest.STATUS_APPROVED_OBSERVING:
         return error(msg="当前状态下不能撤回。", code=400)
 
@@ -187,7 +260,7 @@ def revoke_certificate(request, request_id: int):
         data={
             "id": request_obj.id,
             "detail_url": _detail_url(request, request_obj),
-            "status": get_status_payload(request_obj),
+            "status": get_status_payload(request_obj, request.user),
             "request": _serialize_request_detail(request, request_obj),
         },
         msg="申请已撤回，原文件已作废。",
